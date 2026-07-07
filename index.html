@@ -1141,7 +1141,7 @@ async function renderDashboard(){
   let profs=[],onbs=[];
   try{ [profs,onbs]=await Promise.all([DB.profiles(),DB.onboardings()]); }catch(e){}
   const active=(EMP||[]).length;
-  const onClock=(ATT||[]).filter(a=>!a.clock_out).length;
+  const onClock=new Set((ATT||[]).filter(a=>!a.clock_out).map(a=>a.employee_id)).size;
   const pending=(REQ||[]).filter(r=>r.status==="pending").length;
   const onbProg=(onbs||[]).filter(o=>o.status!=="complete").length;
   const yr=""+new Date().getFullYear();
@@ -1427,7 +1427,8 @@ function atClock(){
   const siteField = `<div class="site-field" style="margin-top:12px"><label style="font-size:12px;font-weight:600;color:var(--sub);display:block;margin-bottom:6px">${t("Site or address")}</label>${siteSel}</div>`;
   const gpsNote = `<div style="font-size:11px;color:var(--faint);margin-top:12px;display:flex;align-items:center;gap:5px;justify-content:center;text-align:center"><i class="ti ti-map-pin"></i> ${t("Your location is recorded at clock-in so the office can confirm you are at the site.")}</div>`;
   const remoteNote = `<div style="font-size:11px;color:var(--faint);margin-top:12px;display:flex;align-items:center;gap:5px;justify-content:center;text-align:center"><i class="ti ti-home"></i> ${t("Remote clock-in. No location is recorded.")}</div>`;
-  const onField=(ATT||[]).filter(a=>!a.clock_out&&a.team==="ca").length, onRemote=(ATT||[]).filter(a=>!a.clock_out&&a.team==="ph").length;
+  const openNowRows=(ATT||[]).filter(a=>!a.clock_out);
+  const onField=new Set(openNowRows.filter(a=>a.team==="ca").map(a=>a.employee_id)).size, onRemote=new Set(openNowRows.filter(a=>a.team==="ph").map(a=>a.employee_id)).size;
   const summary=`<div class="clock-sum"><div class="cs-item"><div class="cs-n">${onField+onRemote}</div><div class="cs-l">${t("Clocked in")}</div></div><div class="cs-item"><div class="cs-n">${onField}</div><div class="cs-l">${t("In the field")}</div></div><div class="cs-item"><div class="cs-n">${onRemote}</div><div class="cs-l">${t("Remote")}</div></div></div>`;
   $("#view").innerHTML=`<div class="clock-screen">${head}
     <div class="clock-card">
@@ -1450,6 +1451,8 @@ function setClockLoc(loc){ state.clockLoc=loc; const key=loc==="remote"?"ph":"ca
 function tickClock(){const el=$("#liveClock"),d=$("#liveDate");if(!el)return;const now=new Date();el.textContent=now.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"});if(d)d.textContent=now.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"});}
 async function atDoClockIn(empId){
   const e=emp(empId);if(!e)return;
+  const dup=await DB.openEntry(e.id);
+  if(dup){ toast(`${e.name.split(" ")[0]} is already clocked in`); await refresh(); renderAttendance(); return; }
   const remote = state.clockLoc==="remote";
   const siteEl=$("#clockSite");const site=remote?"Remote":(siteEl?siteEl.value.trim():"");
   const kindEl=$("#clockKind");const kind=kindEl?kindEl.value:"work";
