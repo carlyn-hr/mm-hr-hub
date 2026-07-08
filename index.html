@@ -437,6 +437,40 @@ textarea.f-input{resize:vertical;min-height:70px}
 .cel-list{display:flex;flex-direction:column;gap:8px}
 .cel-row{display:flex;align-items:center;gap:13px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 13px}
 .cel-when{font-size:12px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:3px 11px;white-space:nowrap}
+.cel-wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.cel-col{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:15px 16px}
+.cel-h{font-size:13.5px;font-weight:700;color:var(--accent);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.cel-line{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13.5px}
+.cel-line:last-child{border-bottom:none}
+.cel-name{font-weight:600;color:var(--text)}
+.cel-meta{font-size:12px;color:var(--faint);white-space:nowrap}
+.cel-empty{font-size:12.5px;color:var(--faint);padding:4px 0}
+.action-card .ai{line-height:1}
+.form-list{display:flex;flex-direction:column;gap:9px}
+.form-card{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:13px 14px;cursor:pointer}
+.form-card:hover{border-color:var(--accent);background:var(--accent-soft)}
+.form-ic{width:42px;height:42px;border-radius:11px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0;line-height:1}
+.form-main{flex:1;min-width:0;display:flex;flex-direction:column}
+.form-t{font-weight:700;font-size:14.5px;color:var(--text)}
+.form-d{font-size:12.5px;color:var(--sub);margin-top:2px}
+.ir-card{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--border-strong);border-radius:14px;padding:15px;cursor:pointer}
+.ir-card:hover{border-color:var(--bad)}
+.ir-ic{width:44px;height:44px;border-radius:11px;background:#fdeceb;color:var(--bad);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.inbox-list{display:flex;flex-direction:column;gap:8px}
+.inbox-row{display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 13px;cursor:pointer}
+.inbox-row:hover{border-color:var(--accent);background:var(--accent-soft)}
+.inbox-ic{width:38px;height:38px;border-radius:10px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;line-height:1}
+.inbox-tag{font-size:11px;font-weight:700;border-radius:999px;padding:3px 10px;white-space:nowrap}
+.inbox-tag.neww{background:var(--accent-soft);color:var(--accent)}
+.inbox-tag.done{background:#e9f7ef;color:#1a7f43}
+.brk-row{display:flex;gap:9px;margin-top:12px}
+.brk-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:11px 8px;border:1px solid var(--border-strong);border-radius:12px;background:var(--surface);color:var(--text);font-weight:650;font-size:13.5px;cursor:pointer}
+.brk-btn i{font-size:19px;color:var(--accent)}
+.brk-btn small{font-size:10.5px;font-weight:500;color:var(--faint)}
+.brk-btn:hover{border-color:var(--accent);background:var(--accent-soft)}
+.brk-btn.brk-end{flex-direction:row;justify-content:center;gap:7px;margin-top:12px;border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.brk-active{margin-top:12px;font-size:13px;color:var(--sub);text-align:center}
+.status-brk{color:var(--gold-d);font-weight:700}
 /* Toolkit */
 .tk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 .tk-quick{display:flex;flex-direction:column;align-items:flex-start;gap:9px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;font-size:13.5px;font-weight:650;color:var(--text)}
@@ -481,6 +515,7 @@ textarea.f-input{resize:vertical;min-height:70px}
     <button class="nav-item" id="navDashboard" data-m="dashboard" onclick="goModule('dashboard')" style="display:none"><i class="ti ti-layout-dashboard"></i> <span class="nav-label">HR Dashboard</span></button>
     <button class="nav-item" id="navToolkit" data-m="toolkit" onclick="goModule('toolkit')" style="display:none"><i class="ti ti-briefcase"></i> <span class="nav-label">Manager Toolkit</span></button>
     <button class="nav-item" id="navSop" data-m="sop" onclick="goModule('sop')" style="display:none"><i class="ti ti-book"></i> <span class="nav-label">SOP Library</span></button>
+    <button class="nav-item" id="navInbox" data-m="hrinbox" onclick="goModule('hrinbox')" style="display:none"><i class="ti ti-inbox"></i> <span class="nav-label">HR Inbox</span></button>
   </nav>
   <div class="side-foot">
     <span class="src" id="src"><span class="d"></span><span id="srcText">Demo data</span></span>
@@ -654,6 +689,9 @@ const DB={
   async employees(){ if(LIVE){const{data,error}=await sb.from("employees").select("*").order("name");if(error)throw error;return data.filter(e=>e.active!==false);} return clone(DEMO_EMP).filter(e=>e.active!==false); },
   async profiles(){ if(LIVE){const{data,error}=await sb.from("employee_profiles").select("*").order("name");if(error)throw error;return (data||[]).filter(e=>e.active!==false);} return []; },
   async updateProfile(id,patch){ if(!LIVE)return; const{error}=await sb.from("employee_profiles").update(patch).eq("id",id); if(error)throw error; },
+  async addSubmission(o){ if(LIVE){const{error}=await sb.from("hr_submissions").insert([o]);if(error)throw error;} return true; },
+  async submissions(){ if(LIVE){const{data,error}=await sb.from("hr_submissions").select("*").order("created_at",{ascending:false});if(error)throw error;return data||[];} return []; },
+  async updateSubmission(id,patch){ if(LIVE){const{error}=await sb.from("hr_submissions").update(patch).eq("id",id);if(error)throw error;} },
   async postings(){ if(!LIVE)return[]; const{data,error}=await sb.from("job_postings").select("*").order("created_at",{ascending:false}); if(error)throw error; return data||[]; },
   async addPosting(o){ if(!LIVE)return; const{error}=await sb.from("job_postings").insert(o); if(error)throw error; },
   async updatePosting(id,patch){ if(!LIVE)return; const{error}=await sb.from("job_postings").update(patch).eq("id",id); if(error)throw error; },
@@ -676,7 +714,8 @@ const DB={
   async deactivateEmployee(id){ if(LIVE){const{error}=await sb.from("employees").update({active:false}).eq("id",id);if(error)throw error;return;} const e=DEMO_EMP.find(x=>x.id===id); if(e)e.active=false; },
   async openEntry(empId){ if(LIVE){const{data,error}=await sb.from("attendance").select("*").eq("employee_id",empId).is("clock_out",null).limit(1);if(error)throw error;return data[0]||null;} return DEMO_ATT.find(a=>a.employee_id===empId&&!a.clock_out)||null; },
   async clockIn(rec){ if(LIVE){const{error}=await sb.from("attendance").insert(rec);if(error)throw error;return;} DEMO_ATT.push({...rec,id:uid(),hours:null,clock_out:null}); },
-  async clockOut(id,clock_out,hours){ if(LIVE){const{error}=await sb.from("attendance").update({clock_out,hours}).eq("id",id);if(error)throw error;return;} const a=DEMO_ATT.find(x=>x.id===id); if(a){a.clock_out=clock_out;a.hours=hours;} }
+  async clockOut(id,clock_out,hours){ if(LIVE){const{error}=await sb.from("attendance").update({clock_out,hours}).eq("id",id);if(error)throw error;return;} const a=DEMO_ATT.find(x=>x.id===id); if(a){a.clock_out=clock_out;a.hours=hours;} },
+  async updateEntry(id,patch){ if(LIVE){const{error}=await sb.from("attendance").update(patch).eq("id",id);if(error)throw error;return;} const a=DEMO_ATT.find(x=>x.id===id); if(a)Object.assign(a,patch); }
 };
 
 /* ============================================================ STATE ============================================================ */
@@ -728,9 +767,9 @@ async function refresh(){
 let LANG="en"; try{ const _l=localStorage.getItem("mm_lang"); if(_l==="es"||_l==="en")LANG=_l; }catch(e){}
 const ES={
 "Policies":"Pol\u00edticas","HR Forms":"Formularios","Clock in / out":"Entrada / salida","Time off":"Tiempo libre","Timekeeping":"Control de horas",
-"Quick actions":"Acciones r\u00e1pidas","Start or end your shift":"Inicia o termina tu turno","Request or track leave":"Solicita o consulta tu tiempo libre","Handbook and forms":"Manual y formularios","Read your policies":"Lee tus pol\u00edticas","Hours and timesheets":"Horas y hojas de tiempo","Employee records":"Registros de empleados","Hiring and onboarding":"Contrataci\u00f3n e incorporaci\u00f3n","Timekeeping":"Registro de tiempo","Directory":"Directorio","Recruitment":"Reclutamiento","Library":"Biblioteca","Tap any policy to read the full text.":"Toca cualquier pol\u00edtica para leer el texto completo.","Pick a category to see its policies.":"Elige una categor\u00eda para ver sus pol\u00edticas.","Training":"Capacitaci\u00f3n","Required training":"Capacitaci\u00f3n requerida","New hire steps":"Pasos de nuevo ingreso","Onboarding":"Incorporaci\u00f3n","The training everyone completes. The office schedules these and tracks your completion.":"La capacitaci\u00f3n que todos completan. La oficina las programa y registra su cumplimiento.","Sexual harassment prevention":"Prevenci\u00f3n del acoso sexual","In-person prevention training every two years through a state Qualified Organization (Labor Code 1429.5), plus the general training required for employers with five or more employees.":"Capacitaci\u00f3n presencial de prevenci\u00f3n cada dos a\u00f1os a trav\u00e9s de una organizaci\u00f3n calificada por el estado (C\u00f3digo Laboral 1429.5), adem\u00e1s de la capacitaci\u00f3n general requerida para empleadores con cinco o m\u00e1s empleados.","Open policy":"Abrir pol\u00edtica","IIPP and safety orientation":"IIPP y orientaci\u00f3n de seguridad","Our Cal/OSHA Injury and Illness Prevention Program, safe work practices, and what to do if you are hurt on the job.":"Nuestro Programa de Prevenci\u00f3n de Lesiones y Enfermedades de Cal/OSHA, pr\u00e1cticas de trabajo seguras y qu\u00e9 hacer si se lesiona en el trabajo.","Chemical and SDS safety":"Seguridad qu\u00edmica y SDS","Safe handling and dilution of cleaning chemicals, never mixing products, using your protective equipment, and reading the Safety Data Sheet.":"Manejo y diluci\u00f3n seguros de qu\u00edmicos de limpieza, nunca mezclar productos, usar su equipo de protecci\u00f3n y leer la Hoja de Datos de Seguridad.","Onsite / Field":"En sitio / Campo","Remote":"Remoto","No remote team set up yet.":"A\u00fan no hay equipo remoto configurado.","No onsite crew set up yet.":"A\u00fan no hay cuadrilla en sitio configurada.","Remote clock-in. No location is recorded.":"Marca remota. No se registra ubicaci\u00f3n.","since":"desde","Site or location (optional)":"Sitio o ubicaci\u00f3n (opcional)","HR Dashboard":"Panel de RRHH","Headcount and pending actions":"Personal y acciones pendientes","Manager Toolkit":"Kit del supervisor","Tools and how-tos":"Herramientas y gu\u00edas","SOP Library":"Biblioteca de procedimientos","Guides for the Hub":"Gu\u00edas del Hub","Work anniversaries":"Aniversarios laborales","Upcoming milestones":"Pr\u00f3ximos hitos","Birthdays":"Cumplea\u00f1os","Upcoming birthdays":"Pr\u00f3ximos cumplea\u00f1os","Coming up in the next 60 days.":"Pr\u00f3ximos en los siguientes 60 d\u00edas.","No birthdays in the next 60 days.":"No hay cumplea\u00f1os en los pr\u00f3ximos 60 d\u00edas.","No anniversaries in the next 60 days.":"No hay aniversarios en los pr\u00f3ximos 60 d\u00edas.","Today":"Hoy","Tomorrow":"Ma\u00f1ana","in":"en","year":"a\u00f1o","years":"a\u00f1os","Admin":"Administraci\u00f3n","Loading...":"Cargando...","Sign in as admin to view the dashboard.":"Inicia sesi\u00f3n como administrador para ver el panel.","Active headcount":"Personal activo","On the clock now":"En turno ahora","Pending time off":"Tiempo libre pendiente","Onboarding in progress":"Incorporaci\u00f3n en curso","New hires this year":"Nuevas contrataciones este a\u00f1o","Documents on file":"Documentos en archivo","crew average":"promedio del equipo","Separations this year":"Bajas este a\u00f1o","recorded in the Hub":"registradas en el Hub","A snapshot of the team and what needs your attention.":"Un resumen del equipo y lo que requiere tu atenci\u00f3n.","Pending actions":"Acciones pendientes","Nothing needs your attention right now.":"Nada requiere tu atenci\u00f3n ahora.","Sign in as admin to open the toolkit.":"Inicia sesi\u00f3n como administrador para abrir el kit.","Quick links and short playbooks for the day to day.":"Enlaces r\u00e1pidos y gu\u00edas breves para el d\u00eda a d\u00eda.","Quick links":"Enlaces r\u00e1pidos","Playbooks":"Gu\u00edas","Review time off":"Revisar tiempo libre","Post a job / hire":"Publicar empleo / contratar","HR forms":"Formularios de RRHH","Sign in as admin to open the SOP Library.":"Inicia sesi\u00f3n como administrador para abrir la biblioteca.","How to run the Hub, for admin, super admin, and staff.":"C\u00f3mo usar el Hub, para administrador, super administrador y personal.","In the field":"En el campo","No documents attached":"Sin documentos adjuntos","Attach a document":"Adjuntar un documento","Label":"Etiqueta","Google Drive link":"Enlace de Google Drive","Upload the file to Drive, share it with the office, then paste the link here.":"Sube el archivo a Drive, comp\u00e1rtelo con la oficina y pega el enlace aqu\u00ed.","Attach":"Adjuntar",
+"Quick actions":"Acciones r\u00e1pidas","Start or end your shift":"Inicia o termina tu turno","Request or track leave":"Solicita o consulta tu tiempo libre","Handbook and forms":"Manual y formularios","Read your policies":"Lee tus pol\u00edticas","Hours and timesheets":"Horas y hojas de tiempo","Employee records":"Registros de empleados","Hiring and onboarding":"Contrataci\u00f3n e incorporaci\u00f3n","Timekeeping":"Registro de tiempo","Directory":"Directorio","Recruitment":"Reclutamiento","Library":"Biblioteca","Tap any policy to read the full text.":"Toca cualquier pol\u00edtica para leer el texto completo.","Welcome":"Bienvenido","Everything in one place. Pick a section to begin.":"Todo en un solo lugar. Elige una secci\u00f3n para comenzar.","Coming up":"Pr\u00f3ximamente","None in the next 60 days.":"Nada en los pr\u00f3ximos 60 d\u00edas.","Pick a category to see its policies.":"Elige una categor\u00eda para ver sus pol\u00edticas.","Training":"Capacitaci\u00f3n","Required training":"Capacitaci\u00f3n requerida","New hire steps":"Pasos de nuevo ingreso","Onboarding":"Incorporaci\u00f3n","The training everyone completes. The office schedules these and tracks your completion.":"La capacitaci\u00f3n que todos completan. La oficina las programa y registra su cumplimiento.","Sexual harassment prevention":"Prevenci\u00f3n del acoso sexual","In-person prevention training every two years through a state Qualified Organization (Labor Code 1429.5), plus the general training required for employers with five or more employees.":"Capacitaci\u00f3n presencial de prevenci\u00f3n cada dos a\u00f1os a trav\u00e9s de una organizaci\u00f3n calificada por el estado (C\u00f3digo Laboral 1429.5), adem\u00e1s de la capacitaci\u00f3n general requerida para empleadores con cinco o m\u00e1s empleados.","Open policy":"Abrir pol\u00edtica","IIPP and safety orientation":"IIPP y orientaci\u00f3n de seguridad","Our Cal/OSHA Injury and Illness Prevention Program, safe work practices, and what to do if you are hurt on the job.":"Nuestro Programa de Prevenci\u00f3n de Lesiones y Enfermedades de Cal/OSHA, pr\u00e1cticas de trabajo seguras y qu\u00e9 hacer si se lesiona en el trabajo.","Chemical and SDS safety":"Seguridad qu\u00edmica y SDS","Safe handling and dilution of cleaning chemicals, never mixing products, using your protective equipment, and reading the Safety Data Sheet.":"Manejo y diluci\u00f3n seguros de qu\u00edmicos de limpieza, nunca mezclar productos, usar su equipo de protecci\u00f3n y leer la Hoja de Datos de Seguridad.","Onsite / Field":"En sitio / Campo","Remote":"Remoto","No remote team set up yet.":"A\u00fan no hay equipo remoto configurado.","No onsite crew set up yet.":"A\u00fan no hay cuadrilla en sitio configurada.","Remote clock-in. No location is recorded.":"Marca remota. No se registra ubicaci\u00f3n.","since":"desde","Site or location (optional)":"Sitio o ubicaci\u00f3n (opcional)","HR Dashboard":"Panel de RRHH","Headcount and pending actions":"Personal y acciones pendientes","Manager Toolkit":"Kit del supervisor","Tools and how-tos":"Herramientas y gu\u00edas","SOP Library":"Biblioteca de procedimientos","Guides for the Hub":"Gu\u00edas del Hub","Work anniversaries":"Aniversarios laborales","Upcoming milestones":"Pr\u00f3ximos hitos","Birthdays":"Cumplea\u00f1os","Upcoming birthdays":"Pr\u00f3ximos cumplea\u00f1os","Coming up in the next 60 days.":"Pr\u00f3ximos en los siguientes 60 d\u00edas.","No birthdays in the next 60 days.":"No hay cumplea\u00f1os en los pr\u00f3ximos 60 d\u00edas.","No anniversaries in the next 60 days.":"No hay aniversarios en los pr\u00f3ximos 60 d\u00edas.","Today":"Hoy","Tomorrow":"Ma\u00f1ana","in":"en","year":"a\u00f1o","years":"a\u00f1os","Admin":"Administraci\u00f3n","Loading...":"Cargando...","Sign in as admin to view the dashboard.":"Inicia sesi\u00f3n como administrador para ver el panel.","Active headcount":"Personal activo","On the clock now":"En turno ahora","Pending time off":"Tiempo libre pendiente","Onboarding in progress":"Incorporaci\u00f3n en curso","New hires this year":"Nuevas contrataciones este a\u00f1o","Documents on file":"Documentos en archivo","crew average":"promedio del equipo","Separations this year":"Bajas este a\u00f1o","recorded in the Hub":"registradas en el Hub","A snapshot of the team and what needs your attention.":"Un resumen del equipo y lo que requiere tu atenci\u00f3n.","Pending actions":"Acciones pendientes","Nothing needs your attention right now.":"Nada requiere tu atenci\u00f3n ahora.","Sign in as admin to open the toolkit.":"Inicia sesi\u00f3n como administrador para abrir el kit.","Quick links and short playbooks for the day to day.":"Enlaces r\u00e1pidos y gu\u00edas breves para el d\u00eda a d\u00eda.","Quick links":"Enlaces r\u00e1pidos","Playbooks":"Gu\u00edas","Review time off":"Revisar tiempo libre","Post a job / hire":"Publicar empleo / contratar","HR forms":"Formularios de RRHH","Sign in as admin to open the SOP Library.":"Inicia sesi\u00f3n como administrador para abrir la biblioteca.","How to run the Hub, for admin, super admin, and staff.":"C\u00f3mo usar el Hub, para administrador, super administrador y personal.","In the field":"En el campo","No documents attached":"Sin documentos adjuntos","Attach a document":"Adjuntar un documento","Label":"Etiqueta","Google Drive link":"Enlace de Google Drive","Upload the file to Drive, share it with the office, then paste the link here.":"Sube el archivo a Drive, comp\u00e1rtelo con la oficina y pega el enlace aqu\u00ed.","Attach":"Adjuntar","Fill and submit":"Llenar y enviar","Read and download":"Leer y descargar","Fill a form and it goes straight to HR. No printing, no links.":"Llene un formulario y llega directo a RRHH. Sin imprimir ni enlaces.","Submit to HR":"Enviar a RRHH","Sent to HR":"Enviado a RRHH","Could not send":"No se pudo enviar","Please fill the required fields":"Complete los campos obligatorios","This goes straight to HR. Do not include bank account or Social Security numbers here.":"Esto llega directo a RRHH. No incluya n\u00fameros de cuenta bancaria ni de Seguro Social aqu\u00ed.","No link set":"Sin enlace","HR Inbox":"Bandeja de RRHH","Forms sent to HR":"Formularios enviados a RRHH","Sign in as admin to open the HR Inbox.":"Inicia sesi\u00f3n como administrador para abrir la bandeja.","Forms and notices your team has sent in.":"Formularios y avisos que tu equipo ha enviado.","Needs attention":"Requiere atenci\u00f3n","Handled":"Atendido","New":"Nuevo","Reopen":"Reabrir","Mark handled":"Marcar como atendido","Marked handled":"Marcado como atendido","Reopened":"Reabierto","No form submissions yet.":"A\u00fan no hay formularios enviados.","No details":"Sin detalles","No details ":"Sin detalles","From":"De","Details":"Detalles","Send to HR":"Enviar a RRHH","Send HR an incident report":"Enviar a RRHH un reporte de incidente","A disciplinary notice or incident record that goes straight to HR.":"Un aviso disciplinario o registro de incidente que llega directo a RRHH.","Forms to review":"Formularios por revisar","form waiting in the HR Inbox":"formulario esperando en la bandeja de RRHH","forms waiting in the HR Inbox":"formularios esperando en la bandeja de RRHH","Employee Information Update":"Actualizaci\u00f3n de datos del empleado","Time Correction / Missed Punch":"Correcci\u00f3n de tiempo","Injury / Incident Report":"Reporte de lesi\u00f3n o incidente","Expense & Mileage Reimbursement":"Reembolso de gastos y millas","Personnel Records Request":"Solicitud de registros","Pregnancy & Maternity Leave Request":"Solicitud de licencia por maternidad","Incident / Disciplinary Notice":"Aviso de incidente / disciplinario","Rest break":"Descanso","Meal break":"Comida","10 min, paid":"10 min, pagado","30 min, unpaid":"30 min, no pagado","On meal break":"En descanso de comida","On rest break":"En descanso","End break":"Terminar descanso","Already on break":"Ya est\u00e1 en descanso","Meal break started":"Descanso de comida iniciado","Rest break started":"Descanso iniciado","Break ended":"Descanso terminado",
 "Home":"Inicio","Clock in, request time off, and read your policies and forms.":"Marca tu entrada, solicita tiempo libre y consulta tus pol\u00edticas y formularios.","Browse by category":"Explorar por categor\u00eda","Required to read":"Lectura obligatoria","Policies count":"Pol\u00edticas",
-"Time clock":"Reloj de tiempo","Who's clocking in?":"\u00bfQui\u00e9n marca su entrada?","Type":"Tipo","Work at a site":"Trabajo en un sitio","Travel between sites":"Viaje entre sitios","Site or address":"Sitio o direcci\u00f3n","Clock in":"Marcar entrada","Clock out":"Marcar salida","Not clocked in. Tap below to start your shift.":"Sin marcar. Toca abajo para iniciar tu turno.","Clocked in":"Entrada marcada","On travel":"En viaje","End travel":"Terminar viaje","Your location is recorded at clock-in so the office can confirm you are at the site.":"Tu ubicaci\u00f3n se registra al marcar la entrada para que la oficina confirme que est\u00e1s en el sitio.",
+"Time clock":"Reloj de tiempo","Who's clocking in?":"\u00bfQui\u00e9n marca su entrada?","Type":"Tipo","Work at a site":"Trabajo en un sitio","Travel between sites":"Viaje entre sitios","Office (in / out)":"Oficina (entrada / salida)","Work onsite / offsite":"Trabajo en sitio / fuera de sitio","In the office":"En la oficina","Working remotely":"Trabajando de forma remota","Working onsite":"Trabajando en sitio","Clock out of office":"Salir de la oficina","Site or address":"Sitio o direcci\u00f3n","Clock in":"Marcar entrada","Clock out":"Marcar salida","Not clocked in. Tap below to start your shift.":"Sin marcar. Toca abajo para iniciar tu turno.","Clocked in":"Entrada marcada","On travel":"En viaje","End travel":"Terminar viaje","Your location is recorded at clock-in so the office can confirm you are at the site.":"Tu ubicaci\u00f3n se registra al marcar la entrada para que la oficina confirme que est\u00e1s en el sitio.",
 "All employees":"Todos los empleados","Information":"Información","HR forms & documents":"Formularios y documentos","The handbook and forms your team may need. Open one to view or download.":"El manual y los formularios que tu equipo pueda necesitar. Abre uno para verlo o descargarlo.","Open":"Abrir","For":"Para",
 "Request time off":"Solicitar tiempo libre","Submit a request and track its status. Approved days are deducted from your balance automatically.":"Env\u00eda una solicitud y consulta su estado. Los d\u00edas aprobados se descuentan de tu saldo autom\u00e1ticamente.","I am":"Yo soy","My balances":"Mis saldos","New request":"Nueva solicitud","Leave type":"Tipo de permiso","Start date":"Fecha de inicio","End date":"Fecha de fin","Reason (optional)":"Motivo (opcional)","Submit request":"Enviar solicitud","My requests":"Mis solicitudes","days":"d\u00edas","hours":"horas","Pick dates to see working days.":"Elige las fechas para ver los d\u00edas laborables.","Half day (single day only)":"Medio d\u00eda (solo un d\u00eda)","A short note for your manager":"Una nota breve para tu supervisor","Manager view":"Vista de supervisor"
 };
@@ -776,7 +815,7 @@ function applyRole(){
   const tk=$("#navTimekeeping"); if(tk) tk.style.display=state.isAdmin?"flex":"none";
   const dr=$("#navDirectory"); if(dr) dr.style.display=state.isAdmin?"flex":"none";
   const rc=$("#navRecruit"); if(rc) rc.style.display=state.isAdmin?"flex":"none";
-  ["navDashboard","navToolkit","navSop"].forEach(id=>{const n=$("#"+id);if(n)n.style.display=state.isAdmin?"flex":"none";});
+  ["navDashboard","navToolkit","navSop","navInbox"].forEach(id=>{const n=$("#"+id);if(n)n.style.display=state.isAdmin?"flex":"none";});
   $("#adminToggleLabel").textContent=state.isAdmin?"Sign out":"Admin sign in";
   $("#adminToggle").querySelector("i").className=state.isAdmin?"ti ti-lock-open":"ti ti-lock";
 }
@@ -822,6 +861,7 @@ function render(){
   else if(state.module==="dashboard") renderDashboard();
   else if(state.module==="toolkit") renderToolkit();
   else if(state.module==="sop") renderSOP();
+  else if(state.module==="hrinbox") renderInbox();
   else if(state.module==="anniv") renderCelebrations("anniv");
   else if(state.module==="bday") renderCelebrations("bday");
   else if(state.module==="onboard") renderOnboard();
@@ -1138,8 +1178,9 @@ function renderCelebrations(kind){
 async function renderDashboard(){
   if(!state.isAdmin){ $("#view").innerHTML=pageHead("HR Dashboard","HR Dashboard","")+`<div class="empty"><i class="ti ti-lock"></i><p>${t("Sign in as admin to view the dashboard.")}</p></div>`; return; }
   $("#view").innerHTML=pageHead(t("Admin"),t("HR Dashboard"),"")+`<div class="card"><div style="color:var(--sub);font-size:13.5px"><i class="ti ti-loader-2"></i> ${t("Loading...")}</div></div>`;
-  let profs=[],onbs=[];
-  try{ [profs,onbs]=await Promise.all([DB.profiles(),DB.onboardings()]); }catch(e){}
+  let profs=[],onbs=[],subs=[];
+  try{ [profs,onbs,subs]=await Promise.all([DB.profiles(),DB.onboardings(),DB.submissions()]); }catch(e){}
+  const pendSubs=(subs||[]).filter(s=>s.status!=="handled").length;
   const active=(EMP||[]).length;
   const onClock=new Set((ATT||[]).filter(a=>!a.clock_out).map(a=>a.employee_id)).size;
   const pending=(REQ||[]).filter(r=>r.status==="pending").length;
@@ -1158,10 +1199,12 @@ async function renderDashboard(){
     ${card("ti-user-plus",newHires,t("New hires this year"),"")}
     ${card("ti-file-check",docAvg+"%",t("Documents on file"),t("crew average"))}
     ${card("ti-user-x",sep,t("Separations this year"),t("recorded in the Hub"))}
+    ${card("ti-inbox",pendSubs,t("Forms to review"),"",pendSubs?"goModule('hrinbox')":"")}
   </div>`;
   const acts=[];
   if(pending) acts.push(["ti-calendar-stats",`${pending} ${pending===1?t("time-off request waiting for a decision"):t("time-off requests waiting for a decision")}`,"goModule('leave')"]);
   if(onbProg) acts.push(["ti-clipboard-check",`${onbProg} ${onbProg===1?t("onboarding in progress"):t("onboardings in progress")}`,"goModule('recruit')"]);
+  if(pendSubs) acts.push(["ti-inbox",`${pendSubs} ${pendSubs===1?t("form waiting in the HR Inbox"):t("forms waiting in the HR Inbox")}`,"goModule('hrinbox')"]);
   const newBumps=(EMP||[]).filter(e=>e.hire_date&&(e.balances&&(e.balances["Paid Sick Leave"]??0)===0)&&Math.floor((Date.now()-new Date(e.hire_date+"T00:00:00"))/86400000)>=90);
   if(newBumps.length) acts.push(["ti-alarm",`${newBumps.length} ${newBumps.length===1?t("new hire is past 90 days and needs sick hours set"):t("new hires are past 90 days and need sick hours set")}`,"goModule('directory')"]);
   const list=acts.length?acts.map(a=>`<button class="act-row" onclick="${a[2]}"><i class="ti ${a[0]}"></i><span>${a[1]}</span><i class="ti ti-chevron-right" style="margin-left:auto;color:var(--faint)"></i></button>`).join(""):`<div class="empty" style="padding:22px"><i class="ti ti-circle-check"></i><p>${t("Nothing needs your attention right now.")}</p></div>`;
@@ -1172,12 +1215,13 @@ function renderToolkit(){
   if(!state.isAdmin){ $("#view").innerHTML=pageHead("Manager Toolkit","Manager Toolkit","")+`<div class="empty"><i class="ti ti-lock"></i><p>${t("Sign in as admin to open the toolkit.")}</p></div>`; return; }
   const quick=[
     ["ti-calendar-check",t("Review time off"),"goModule('leave')"],
-    ["ti-clock-hour-4",t("Timekeeping"),"goModule('attendance')"],
     ["ti-address-book",t("Directory"),"goModule('directory')"],
     ["ti-user-plus",t("Post a job / hire"),"goModule('recruit')"],
     ["ti-folder",t("HR forms"),"goModule('documents')"],
+    ["ti-inbox",t("HR Inbox"),"goModule('hrinbox')"],
     ["ti-layout-dashboard",t("HR Dashboard"),"goModule('dashboard')"]
   ].map(q=>`<button class="tk-quick" onclick="${q[2]}"><i class="ti ${q[0]}"></i><span>${q[1]}</span></button>`).join("");
+  const irCard=`<button class="ir-card" onclick="formOpen('incident')"><div class="ir-ic"><i class="ti ti-alert-triangle"></i></div><div style="flex:1;min-width:0"><div style="font-weight:700;font-size:15px">${t("Send HR an incident report")}</div><div style="font-size:12.5px;color:var(--sub);margin-top:3px">${t("A disciplinary notice or incident record that goes straight to HR.")}</div></div><i class="ti ti-chevron-right" style="color:var(--faint)"></i></button>`;
   const guides=[
     ["ti-phone-off",t("A crew member calls out"),t("Log it. If they have sick hours, record the day in Time off so it deducts. Never ask for the diagnosis, and never push back on a sick day. Arrange coverage for the site.")],
     ["ti-message",t("Giving feedback"),t("Be specific and timely. Name the behavior, the impact, and what good looks like. Keep it private, keep it calm, and write a short note for the file afterward.")],
@@ -1186,7 +1230,8 @@ function renderToolkit(){
     ["ti-user-check",t("Starting a new hire"),t("Create their onboarding in Recruitment and send them the private link. Confirm I-9 documents, the W-4 and DE 4, and that they have read and acknowledged the handbook and the harassment policy.")]
   ].map(g=>`<div class="card" style="display:flex;gap:14px;align-items:flex-start"><div class="tk-ic"><i class="ti ${g[0]}"></i></div><div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14.5px">${g[1]}</div><div style="font-size:13px;color:var(--sub);line-height:1.5;margin-top:4px">${g[2]}</div></div></div>`).join("");
   $("#view").innerHTML=pageHead(t("Admin"),t("Manager Toolkit"),t("Quick links and short playbooks for the day to day."))
-    +`<div class="section-label">${t("Quick links")}</div><div class="tk-grid">${quick}</div>`
+    +`<div class="section-label">${t("Send to HR")}</div>${irCard}`
+    +`<div class="section-label" style="margin-top:20px">${t("Quick links")}</div><div class="tk-grid">${quick}</div>`
     +`<div class="section-label" style="margin-top:20px">${t("Playbooks")}</div><div style="display:flex;flex-direction:column;gap:12px">${guides}</div>`;
 }
 
@@ -1214,6 +1259,129 @@ function sopPanel(i){
   $("#panel").classList.add("open");$("#panelScrim").classList.add("open");$("#pBody").scrollTop=0;
 }
 
+/* ============================================================ HR FORMS (fill & submit) + HR INBOX ============================================================ */
+const FORMS={
+  emp_info:{emoji:"\u{1F9D1}",title:"Employee Information Update",title_es:"Actualizaci\u00f3n de datos del empleado",desc:"Update your contact and emergency information.",desc_es:"Actualice su contacto e informaci\u00f3n de emergencia.",fields:[
+    {k:"name",label:"Your name",label_es:"Su nombre",type:"text",req:true},
+    {k:"phone",label:"Phone",label_es:"Tel\u00e9fono",type:"text"},
+    {k:"address",label:"Home address",label_es:"Direcci\u00f3n",type:"textarea"},
+    {k:"emg_name",label:"Emergency contact name",label_es:"Nombre del contacto de emergencia",type:"text"},
+    {k:"emg_phone",label:"Emergency contact phone",label_es:"Tel\u00e9fono del contacto de emergencia",type:"text"},
+    {k:"notes",label:"Anything else",label_es:"Algo m\u00e1s",type:"textarea"}]},
+  time_fix:{emoji:"\u{23F1}\u{FE0F}",title:"Time Correction / Missed Punch",title_es:"Correcci\u00f3n de tiempo",desc:"Report a missed or wrong clock punch.",desc_es:"Reporte una marca de reloj incorrecta o faltante.",fields:[
+    {k:"name",label:"Your name",label_es:"Su nombre",type:"text",req:true},
+    {k:"date",label:"Date of the shift",label_es:"Fecha del turno",type:"date",req:true},
+    {k:"issue",label:"What was wrong",label_es:"Qu\u00e9 estuvo mal",type:"select",options:["Missed clock-in","Missed clock-out","Wrong time","Wrong site","Other"]},
+    {k:"correct",label:"The correct times",label_es:"Las horas correctas",type:"text"},
+    {k:"notes",label:"Details",label_es:"Detalles",type:"textarea"}]},
+  injury:{emoji:"\u{1FA79}",title:"Injury / Incident Report",title_es:"Reporte de lesi\u00f3n o incidente",desc:"Report a work injury or a safety incident.",desc_es:"Reporte una lesi\u00f3n de trabajo o un incidente de seguridad.",fields:[
+    {k:"name",label:"Your name",label_es:"Su nombre",type:"text",req:true},
+    {k:"date",label:"Date",label_es:"Fecha",type:"date",req:true},
+    {k:"location",label:"Where it happened",label_es:"D\u00f3nde ocurri\u00f3",type:"text"},
+    {k:"what",label:"What happened",label_es:"Qu\u00e9 pas\u00f3",type:"textarea",req:true},
+    {k:"injury",label:"Injury, if any",label_es:"Lesi\u00f3n, si hubo",type:"text"},
+    {k:"medical",label:"Did they get medical care?",label_es:"\u00bfRecibi\u00f3 atenci\u00f3n m\u00e9dica?",type:"select",options:["No","Yes","Not sure"]}]},
+  expense:{emoji:"\u{1F9FE}",title:"Expense & Mileage Reimbursement",title_es:"Reembolso de gastos y millas",desc:"Ask to be paid back for a work expense or mileage.",desc_es:"Solicite el reembolso de un gasto o millas.",fields:[
+    {k:"name",label:"Your name",label_es:"Su nombre",type:"text",req:true},
+    {k:"date",label:"Date of expense",label_es:"Fecha del gasto",type:"date"},
+    {k:"kind",label:"Type",label_es:"Tipo",type:"select",options:["Supplies","Mileage","Parking / tolls","Other"]},
+    {k:"amount",label:"Amount (USD)",label_es:"Monto (USD)",type:"number"},
+    {k:"desc",label:"What it was for",label_es:"Para qu\u00e9 fue",type:"textarea"},
+    {k:"receipt",label:"Receipt link (Drive), optional",label_es:"Enlace del recibo (Drive), opcional",type:"text"}]},
+  records:{emoji:"\u{1F4C1}",title:"Personnel Records Request",title_es:"Solicitud de registros",desc:"Ask for a copy of your personnel or payroll records.",desc_es:"Solicite una copia de sus registros.",fields:[
+    {k:"name",label:"Your name",label_es:"Su nombre",type:"text",req:true},
+    {k:"want",label:"What records do you need",label_es:"Qu\u00e9 registros necesita",type:"textarea",req:true},
+    {k:"how",label:"How to receive them",label_es:"C\u00f3mo recibirlos",type:"select",options:["Email","Printed","Pick up"]}]},
+  pdl:{emoji:"\u{1F930}",title:"Pregnancy & Maternity Leave Request",title_es:"Solicitud de licencia por maternidad",desc:"Request pregnancy disability or maternity leave.",desc_es:"Solicite licencia por embarazo o maternidad.",fields:[
+    {k:"name",label:"Your name",label_es:"Su nombre",type:"text",req:true},
+    {k:"start",label:"Expected start date",label_es:"Fecha de inicio prevista",type:"date"},
+    {k:"return",label:"Expected return date",label_es:"Fecha de regreso prevista",type:"date"},
+    {k:"notes",label:"Notes for HR",label_es:"Notas para RRHH",type:"textarea"}]},
+  incident:{emoji:"\u{26A0}\u{FE0F}",title:"Incident / Disciplinary Notice",title_es:"Aviso de incidente / disciplinario",desc:"Send HR a record of an incident or a disciplinary concern.",desc_es:"Env\u00ede a RRHH un registro de un incidente o una preocupaci\u00f3n disciplinaria.",fields:[
+    {k:"employee",label:"Employee involved",label_es:"Empleado involucrado",type:"text",req:true},
+    {k:"date",label:"Date of incident",label_es:"Fecha del incidente",type:"date",req:true},
+    {k:"type",label:"Type",label_es:"Tipo",type:"select",options:["Attendance","Conduct","Safety","Performance","Break violation","Policy violation","Other"]},
+    {k:"location",label:"Location / site",label_es:"Lugar / sitio",type:"text"},
+    {k:"what",label:"What happened",label_es:"Qu\u00e9 pas\u00f3",type:"textarea",req:true},
+    {k:"witnesses",label:"Witnesses",label_es:"Testigos",type:"text"},
+    {k:"action",label:"Action recommended",label_es:"Acci\u00f3n recomendada",type:"select",options:["Verbal warning","Written warning","Final warning","Termination","HR to decide"]},
+    {k:"reporter",label:"Reported by (you)",label_es:"Reportado por (usted)",type:"text",req:true}]}
+};
+const HR_FORM_IDS=["emp_info","time_fix","injury","expense","records","pdl"];
+function fLabel(f){ return LANG==="es"&&f.label_es?f.label_es:f.label; }
+function fTitle(d){ return d?(LANG==="es"&&d.title_es?d.title_es:d.title):""; }
+function fDesc(d){ return LANG==="es"&&d.desc_es?d.desc_es:d.desc; }
+function subDate(s){ try{return new Date(s).toLocaleDateString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});}catch(e){return "";} }
+function fieldHTML(f){
+  const lab=`<label style="display:block;font-size:12.5px;font-weight:600;color:var(--sub);margin:13px 0 5px">${esc(fLabel(f))}${f.req?' <span style="color:var(--bad)">*</span>':''}</label>`;
+  const id="f_"+f.k;
+  if(f.type==="textarea") return lab+`<textarea id="${id}" class="f-input" rows="3" style="width:100%;resize:vertical"></textarea>`;
+  if(f.type==="select") return lab+`<select id="${id}" class="f-input" style="width:100%">${f.options.map(o=>`<option>${esc(o)}</option>`).join("")}</select>`;
+  const tp=f.type==="date"?"date":(f.type==="number"?"number":"text");
+  return lab+`<input id="${id}" type="${tp}" class="f-input" style="width:100%"/>`;
+}
+function formOpen(id){
+  const d=FORMS[id]; if(!d)return; state._formId=id;
+  const back=id==="incident"?"goModule('toolkit')":"goModule('documents')";
+  $("#view").innerHTML=pageHead(t("HR Forms"),fTitle(d),fDesc(d))
+   +`<div class="card" style="max-width:640px">${d.fields.map(fieldHTML).join("")}
+     <div style="display:flex;gap:10px;margin-top:20px">
+       <button class="btn btn-primary" onclick="formSubmit('${id}')"><i class="ti ti-send"></i> ${t("Submit to HR")}</button>
+       <button class="btn btn-ghost" onclick="${back}">${t("Cancel")}</button>
+     </div>
+     <div style="font-size:11.5px;color:var(--faint);margin-top:14px"><i class="ti ti-shield-lock"></i> ${t("This goes straight to HR. Do not include bank account or Social Security numbers here.")}</div>
+   </div>`;
+}
+async function formSubmit(id){
+  const d=FORMS[id]; if(!d)return;
+  const data={}; let missing=false;
+  d.fields.forEach(f=>{ const el=$("#f_"+f.k); const v=el?el.value.trim():""; data[f.label]=v; if(f.req&&!v)missing=true; });
+  if(missing){ toast(t("Please fill the required fields")); return; }
+  const nf=d.fields.find(f=>/name|employee|reporter/i.test(f.k));
+  const who=nf?(data[nf.label]||""):"";
+  const rec={type:id,title:d.title,employee_name:who,submitted_by:who||"Staff",data,status:"pending",created_at:new Date().toISOString()};
+  try{
+    await DB.addSubmission(rec);
+    if(CONFIG.notifyWebhook){ try{ fetch(CONFIG.notifyWebhook,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(rec)}); }catch(e){} }
+    toast(t("Sent to HR"));
+    goModule(id==="incident"?"toolkit":"documents");
+  }catch(e){ toast(t("Could not send")); }
+}
+async function renderInbox(){
+  if(!state.isAdmin){ $("#view").innerHTML=pageHead("HR Inbox","HR Inbox","")+`<div class="empty"><i class="ti ti-lock"></i><p>${t("Sign in as admin to open the HR Inbox.")}</p></div>`; return; }
+  $("#view").innerHTML=pageHead(t("Admin"),t("HR Inbox"),"")+`<div class="card"><div style="color:var(--sub);font-size:13.5px"><i class="ti ti-loader-2"></i> ${t("Loading...")}</div></div>`;
+  let subs=[]; try{ subs=await DB.submissions(); }catch(e){}
+  state._subs=subs;
+  const pending=subs.filter(s=>s.status!=="handled"), done=subs.filter(s=>s.status==="handled");
+  const row=s=>`<button class="inbox-row" onclick="inboxOpen('${s.id}')">
+    <span class="inbox-ic">${(FORMS[s.type]||{}).emoji||"\u{1F4C4}"}</span>
+    <span class="dir-main"><span class="dir-name">${esc(fTitle(FORMS[s.type])||esc(s.title))}</span><span class="dir-sub">${esc(s.employee_name||s.submitted_by||"")} \u00b7 ${subDate(s.created_at)}</span></span>
+    ${s.status==="handled"?`<span class="inbox-tag done">${t("Handled")}</span>`:`<span class="inbox-tag neww">${t("New")}</span>`}</button>`;
+  const sec=(label,arr)=>arr.length?`<div class="section-label" style="margin-top:18px">${label} (${arr.length})</div><div class="inbox-list">${arr.map(row).join("")}</div>`:"";
+  const body=(pending.length||done.length)?sec(t("Needs attention"),pending)+sec(t("Handled"),done)
+    :`<div class="empty"><i class="ti ti-inbox"></i><p>${t("No form submissions yet.")}</p></div>`;
+  $("#view").innerHTML=pageHead(t("Admin"),t("HR Inbox"),t("Forms and notices your team has sent in."))+body;
+}
+function inboxOpen(id){
+  const s=(state._subs||[]).find(x=>x.id===id); if(!s)return;
+  const d=FORMS[s.type];
+  const rows=Object.entries(s.data||{}).filter(([k,v])=>v!=="").map(([k,v])=>`<div class="kv"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`).join("")||`<div class="kv"><span class="v muted">${t("No details")}</span></div>`;
+  $("#pCat").innerHTML=`<span class="team-dot" style="background:var(--accent)"></span><span style="color:var(--accent)">${esc(subDate(s.created_at))}</span>`;
+  $("#pTitle").textContent=fTitle(d)||s.title;
+  $("#pBadges").innerHTML=s.status==="handled"?`<span class="inbox-tag done">${t("Handled")}</span>`:`<span class="inbox-tag neww">${t("New")}</span>`;
+  $("#pBody").innerHTML=`<div class="sec"><div class="sec-h">${t("From")}</div><div class="kv"><span class="v">${esc(s.submitted_by||s.employee_name||"")}</span></div></div><div class="sec"><div class="sec-h">${t("Details")}</div>${rows}</div>`;
+  $("#pFoot").innerHTML=s.status==="handled"
+    ? `<button class="btn btn-ghost" onclick="inboxSet('${s.id}','pending')">${t("Reopen")}</button>`
+    : `<button class="btn btn-primary" onclick="inboxSet('${s.id}','handled')"><i class="ti ti-check"></i> ${t("Mark handled")}</button>`;
+  $("#panel").classList.add("open");$("#panelScrim").classList.add("open");$("#pBody").scrollTop=0;
+}
+async function inboxSet(id,status){
+  try{ await DB.updateSubmission(id,{status}); }catch(e){ toast("Failed"); return; }
+  const s=(state._subs||[]).find(x=>x.id===id); if(s)s.status=status;
+  $("#panel").classList.remove("open");$("#panelScrim").classList.remove("open");
+  toast(status==="handled"?t("Marked handled"):t("Reopened")); renderInbox();
+}
+
 /* ============================================================ POLICIES ============================================================ */
 function parseCSV(text){const rows=[];let row=[],cur="",q=false;for(let i=0;i<text.length;i++){const c=text[i],n=text[i+1];if(q){if(c==='"'&&n==='"'){cur+='"';i++;}else if(c==='"')q=false;else cur+=c;}else{if(c==='"')q=true;else if(c===','){row.push(cur);cur="";}else if(c==='\r'){}else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur="";}else cur+=c;}}if(cur.length||row.length){row.push(cur);rows.push(row);}return rows.filter(r=>r.some(c=>c.trim()!==""));}
 function rowsToPolicies(rows){if(!rows.length)return[];const h=rows[0].map(x=>x.trim().toLowerCase());const idx=(...n)=>{for(const m of n){const i=h.indexOf(m);if(i>=0)return i;}return -1;};const ci={category:idx("category","group"),name:idx("policy","name","title"),summary:idx("summary","description"),link:idx("link","url","doc"),status:idx("status"),owner:idx("owner"),updated:idx("updated","last reviewed","reviewed"),tags:idx("tags"),required:idx("required","mandatory")};const out=[];for(let i=1;i<rows.length;i++){const r=rows[i],g=k=>ci[k]>=0?(r[ci[k]]||"").trim():"";const name=g("name");if(!name)continue;const rq=g("required").toLowerCase();out.push({category:g("category")||"General",name,summary:g("summary"),link:g("link"),status:g("status")||"Active",owner:g("owner"),updated:g("updated"),tags:g("tags")?g("tags").split(",").map(t=>t.trim()).filter(Boolean):[],required:["yes","true","y","1"].includes(rq)});}return out;}
@@ -1235,23 +1403,38 @@ function renderPolicies(){
 }
 function polHome(v){
   const adminTiles = state.isAdmin ? `
-    <button class="action-card" onclick="goModule('dashboard')"><div class="ai"><i class="ti ti-layout-dashboard"></i></div><div><h3>${t('HR Dashboard')}</h3><p>${t('Headcount and pending actions')}</p></div></button>
-    <button class="action-card" onclick="goModule('attendance')"><div class="ai"><i class="ti ti-clock-hour-4"></i></div><div><h3>${t('Timekeeping')}</h3><p>${t('Hours and timesheets')}</p></div></button>
-    <button class="action-card" onclick="goModule('directory')"><div class="ai"><i class="ti ti-address-book"></i></div><div><h3>${t('Directory')}</h3><p>${t('Employee records')}</p></div></button>
-    <button class="action-card" onclick="goModule('recruit')"><div class="ai"><i class="ti ti-user-plus"></i></div><div><h3>${t('Recruitment')}</h3><p>${t('Hiring and onboarding')}</p></div></button>
-    <button class="action-card" onclick="goModule('toolkit')"><div class="ai"><i class="ti ti-briefcase"></i></div><div><h3>${t('Manager Toolkit')}</h3><p>${t('Tools and how-tos')}</p></div></button>
-    <button class="action-card" onclick="goModule('sop')"><div class="ai"><i class="ti ti-book"></i></div><div><h3>${t('SOP Library')}</h3><p>${t('Guides for the Hub')}</p></div></button>` : "";
+    <button class="action-card" onclick="goModule('dashboard')"><div class="ai">\u{1F4CA}</div><div><h3>${t('HR Dashboard')}</h3><p>${t('Headcount and pending actions')}</p></div></button>
+    <button class="action-card" onclick="goModule('attendance')"><div class="ai">\u{23F1}\u{FE0F}</div><div><h3>${t('Timekeeping')}</h3><p>${t('Hours and timesheets')}</p></div></button>
+    <button class="action-card" onclick="goModule('directory')"><div class="ai">\u{1F465}</div><div><h3>${t('Directory')}</h3><p>${t('Employee records')}</p></div></button>
+    <button class="action-card" onclick="goModule('recruit')"><div class="ai">\u{1F4BC}</div><div><h3>${t('Recruitment')}</h3><p>${t('Hiring and onboarding')}</p></div></button>
+    <button class="action-card" onclick="goModule('toolkit')"><div class="ai">\u{1F9F0}</div><div><h3>${t('Manager Toolkit')}</h3><p>${t('Tools and how-tos')}</p></div></button>
+    <button class="action-card" onclick="goModule('sop')"><div class="ai">\u{1F4DA}</div><div><h3>${t('SOP Library')}</h3><p>${t('Guides for the Hub')}</p></div></button>
+    <button class="action-card" onclick="goModule('hrinbox')"><div class="ai">\u{1F4E5}</div><div><h3>${t('HR Inbox')}</h3><p>${t('Forms sent to HR')}</p></div></button>` : "";
   const actions=`<div class="section-label">${t('Quick actions')}</div><div class="action-grid">
-    <button class="action-card" onclick="openPolicies()"><div class="ai"><i class="ti ti-book-2"></i></div><div><h3>${t('Policies')}</h3><p>${t('Read your policies')}</p></div></button>
-    <button class="action-card" onclick="goModule('clock')"><div class="ai"><i class="ti ti-clock-play"></i></div><div><h3>${t('Clock in / out')}</h3><p>${t('Start or end your shift')}</p></div></button>
-    <button class="action-card" onclick="goModule('leave')"><div class="ai"><i class="ti ti-calendar-plus"></i></div><div><h3>${t('Time off')}</h3><p>${t('Request or track leave')}</p></div></button>
-    <button class="action-card" onclick="goModule('documents')"><div class="ai"><i class="ti ti-folder"></i></div><div><h3>${t('HR Forms')}</h3><p>${t('Handbook and forms')}</p></div></button>
-    <button class="action-card" onclick="goModule('training')"><div class="ai"><i class="ti ti-school"></i></div><div><h3>${t('Training')}</h3><p>${t('Required training')}</p></div></button>
-    <button class="action-card" onclick="goModule('onboard')"><div class="ai"><i class="ti ti-clipboard-check"></i></div><div><h3>${t('Onboarding')}</h3><p>${t('New hire steps')}</p></div></button>
-    <button class="action-card" onclick="goModule('anniv')"><div class="ai"><i class="ti ti-award"></i></div><div><h3>${t('Work anniversaries')}</h3><p>${t('Upcoming milestones')}</p></div></button>
-    <button class="action-card" onclick="goModule('bday')"><div class="ai"><i class="ti ti-cake"></i></div><div><h3>${t('Birthdays')}</h3><p>${t('Upcoming birthdays')}</p></div></button>${adminTiles}
+    <button class="action-card" onclick="openPolicies()"><div class="ai">\u{1F4D6}</div><div><h3>${t('Policies')}</h3><p>${t('Read your policies')}</p></div></button>
+    <button class="action-card" onclick="goModule('clock')"><div class="ai">\u{1F550}</div><div><h3>${t('Clock in / out')}</h3><p>${t('Start or end your shift')}</p></div></button>
+    <button class="action-card" onclick="goModule('leave')"><div class="ai">\u{1F334}</div><div><h3>${t('Time off')}</h3><p>${t('Request or track leave')}</p></div></button>
+    <button class="action-card" onclick="goModule('documents')"><div class="ai">\u{1F4C4}</div><div><h3>${t('HR Forms')}</h3><p>${t('Handbook and forms')}</p></div></button>
+    <button class="action-card" onclick="goModule('training')"><div class="ai">\u{1F393}</div><div><h3>${t('Training')}</h3><p>${t('Required training')}</p></div></button>
+    <button class="action-card" onclick="goModule('onboard')"><div class="ai">\u{1F680}</div><div><h3>${t('Onboarding')}</h3><p>${t('New hire steps')}</p></div></button>${adminTiles}
   </div>`;
-  v.innerHTML=pageHead(t("Home"),CONFIG.companyName+" HR Hub",t("Clock in, request time off, and read your policies and forms."))+actions;
+  v.innerHTML=pageHead(CONFIG.companyName+" HR Hub",t("Welcome"),t("Everything in one place. Pick a section to begin."))+celebInline()+actions;
+}
+function celebInline(){
+  const anniv=[],bdays=[];
+  (EMP||[]).forEach(e=>{
+    if(e.hire_date){const hd=new Date(e.hire_date+"T00:00:00");if(!isNaN(hd)){const m=hd.getMonth()+1,dd=hd.getDate();const t0=new Date();t0.setHours(0,0,0,0);let a=new Date(t0.getFullYear(),m-1,dd);if(a<t0)a=new Date(t0.getFullYear()+1,m-1,dd);anniv.push({name:e.name,days:daysUntilMD(m,dd),years:a.getFullYear()-hd.getFullYear()});}}
+    if(e.bday){const p=(""+e.bday).split("-").map(Number);if(p[0]&&p[1])bdays.push({name:e.name,days:daysUntilMD(p[0],p[1]),label:monthDay(p[0],p[1])});}
+  });
+  const upA=anniv.filter(x=>x.days<=60).sort((a,b)=>a.days-b.days).slice(0,5);
+  const upB=bdays.filter(x=>x.days<=60).sort((a,b)=>a.days-b.days).slice(0,5);
+  const when=x=>x.days===0?t("Today"):x.days===1?t("Tomorrow"):`${t("in")} ${x.days} ${t("days")}`;
+  const rowA=x=>`<div class="cel-line"><span class="cel-name">${esc(x.name)}</span><span class="cel-meta">${x.years?x.years+" "+(x.years===1?t("year"):t("years"))+" \u00b7 ":""}${when(x)}</span></div>`;
+  const rowB=x=>`<div class="cel-line"><span class="cel-name">${esc(x.name)}</span><span class="cel-meta">${x.label} \u00b7 ${when(x)}</span></div>`;
+  const none=`<div class="cel-empty">${t("None in the next 60 days.")}</div>`;
+  const colA=`<div class="cel-col"><div class="cel-h">\u{1F389} ${t('Work anniversaries')}</div>${upA.length?upA.map(rowA).join(""):none}</div>`;
+  const colB=`<div class="cel-col"><div class="cel-h">\u{1F382} ${t('Birthdays')}</div>${upB.length?upB.map(rowB).join(""):none}</div>`;
+  return `<div class="section-label" style="margin-top:22px">${t('Coming up')}</div><div class="cel-wrap">${colA}${colB}</div>`;
 }
 function openPolicies(){ state.pol.view="index"; state.query=""; const si=$("#searchInput"); if(si)si.value=""; goModule("policies"); }
 function polIndex(v){
@@ -1288,28 +1471,21 @@ function polPanel(i){
 function closePanel(){$("#panel").classList.remove("open");$("#panelScrim").classList.remove("open");}
 $("#searchInput").addEventListener("input",e=>{state.query=e.target.value;if(state.module==="policies")renderPolicies();});
 function renderDocuments(){
-  const docs=CONFIG.documents||[];
-  const cards=docs.map(d=>{
-    const es = LANG==="es";
-    const L = (es && d.link_es) ? d.link_es : d.link;
-    const nm = (es && d.name_es) ? d.name_es : d.name;
-    const ds = (es && d.desc_es) ? d.desc_es : d.desc;
-    const open = L
-      ? `<a class="btn btn-primary btn-sm" href="${esc(L)}" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> ${t("Open")}</a>`
-      : `<span class="muted-row"><i class="ti ti-link-off"></i> No link set</span>`;
-    return `<div class="card" style="display:flex;gap:16px;align-items:flex-start">
-      <div style="width:46px;height:46px;border-radius:11px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:23px;flex-shrink:0"><i class="ti ti-file-text"></i></div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:15.5px;font-weight:700;letter-spacing:-.2px">${esc(nm)}</div>
-        <div style="font-size:12px;color:var(--faint);margin:3px 0 8px">${t("For")} ${esc(t(d.audience))}</div>
-        <div style="font-size:13px;color:var(--sub);line-height:1.5">${esc(ds)}</div>
-      </div>
-      <div style="flex-shrink:0;padding-top:2px">${open}</div>
-    </div>`;
-  }).join("");
-  const hint = state.isAdmin ? `<p style="font-size:12px;color:var(--faint);margin-top:14px">Paste each document\'s Google Drive or Docs share link into the CONFIG.documents block to switch on the Open buttons.</p>` : "";
-  $("#view").innerHTML = pageHead(t("HR Forms"),t("HR forms & documents"),t("The handbook and forms your team may need. Open one to view or download."))
-    + `<div style="display:flex;flex-direction:column;gap:14px">${cards||'<div class="card empty"><i class="ti ti-folder-open"></i><p>No documents yet.</p></div>'}</div>${hint}`;
+  const forms=HR_FORM_IDS.map(id=>{const d=FORMS[id];return `<button class="form-card" onclick="formOpen('${id}')">
+    <span class="form-ic">${d.emoji}</span>
+    <span class="form-main"><span class="form-t">${esc(fTitle(d))}</span><span class="form-d">${esc(fDesc(d))}</span></span>
+    <i class="ti ti-chevron-right" style="color:var(--faint);flex-shrink:0"></i></button>`;}).join("");
+  const readNames=["Employee Handbook","Sexual Harassment Policy","Direct Deposit Authorization","California Leave & Benefits Guide"];
+  const reads=(CONFIG.documents||[]).filter(d=>readNames.includes(d.name)).map(d=>{
+    const es=LANG==="es"; const L=(es&&d.link_es)?d.link_es:d.link; const nm=(es&&d.name_es)?d.name_es:d.name;
+    return `<div class="card" style="display:flex;gap:13px;align-items:center">
+      <div class="form-ic" style="background:var(--gold-soft);color:var(--gold-d)">\u{1F4D8}</div>
+      <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px">${esc(nm)}</div></div>
+      ${L?`<a class="btn btn-ghost btn-sm" href="${esc(L)}" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> ${t("Open")}</a>`:`<span class="muted-row" style="font-size:12px;color:var(--faint)">${t("No link set")}</span>`}
+    </div>`;}).join("");
+  $("#view").innerHTML=pageHead(t("HR Forms"),t("HR forms & documents"),t("Fill a form and it goes straight to HR. No printing, no links."))
+    +`<div class="section-label">${t("Fill and submit")}</div><div class="form-list">${forms}</div>`
+    +(reads?`<div class="section-label" style="margin-top:22px">${t("Read and download")}</div><div style="display:flex;flex-direction:column;gap:10px">${reads}</div>`:"");
 }
 
 /* ============================================================ LEAVE ============================================================ */
@@ -1415,15 +1591,27 @@ function atClock(){
     : `<input class="f-input" id="clockSite" placeholder="${t("Site or location (optional)")}"/>`;
   let status,btn;
   if(open){
-    const kl=open.kind==="travel"?t("On travel"):t("Clocked in");
-    status=`<div class="status-line"><span class="status-in">● ${kl}</span> ${t("since")} <b>${fmtTime(open.clock_in)}</b>${open.site?` · ${esc(open.site)}`:""}</div>`;
-    btn=`<button class="big-btn big-out" onclick="atClockOut('${open.id}')"><i class="ti ti-logout-2"></i> ${open.kind==="travel"?t("End travel"):t("Clock out")}</button>`;
+    const kl={office:t("In the office"),travel:t("On travel"),work:t("Working onsite"),remote:t("Working remotely")}[open.kind]||t("Clocked in");
+    const siteTxt=(open.site&&open.site!=="Remote")?` · ${esc(open.site)}`:"";
+    status=`<div class="status-line"><span class="status-in">● ${kl}</span> ${t("since")} <b>${fmtTime(open.clock_in)}</b>${siteTxt}</div>`;
+    const outLbl={travel:t("End travel"),office:t("Clock out of office")}[open.kind]||t("Clock out");
+    btn=`<button class="big-btn big-out" onclick="atClockOut('${open.id}')"><i class="ti ti-logout-2"></i> ${outLbl}</button>`;
   }else{
     status=`<div class="status-line">${t("Not clocked in. Tap below to start your shift.")}</div>`;
     btn=`<button class="big-btn big-in" onclick="atDoClockIn('${me.id}')"><i class="ti ti-login-2"></i> ${t("Clock in")}</button>`;
   }
   const back = state.isAdmin ? `<button class="linkbtn" onclick="goModule('attendance')" style="margin-top:18px"><i class="ti ti-chart-bar"></i> Timekeeping</button>` : "";
-  const typeField = `<div class="site-field" style="margin-top:12px"><label style="font-size:12px;font-weight:600;color:var(--sub);display:block;margin-bottom:6px">${t("Type")}</label><select class="f-input" id="clockKind"><option value="work">${t("Work at a site")}</option><option value="travel">${t("Travel between sites")}</option></select></div>`;
+  let breakUI="";
+  if(open){
+    const bks=Array.isArray(open.breaks)?open.breaks:[];
+    const active=bks.filter(b=>!b.end).pop();
+    if(active){
+      breakUI=`<div class="brk-active"><span class="status-brk">\u25CF ${active.kind==="meal"?t("On meal break"):t("On rest break")}</span> ${t("since")} <b>${fmtTime(active.start)}</b></div><button class="brk-btn brk-end" onclick="atEndBreak('${open.id}')"><i class="ti ti-player-stop"></i> ${t("End break")}</button>`;
+    } else {
+      breakUI=`<div class="brk-row"><button class="brk-btn" onclick="atStartBreak('${open.id}','rest')"><i class="ti ti-coffee"></i> ${t("Rest break")}<small>${t("10 min, paid")}</small></button><button class="brk-btn" onclick="atStartBreak('${open.id}','meal')"><i class="ti ti-tools-kitchen-2"></i> ${t("Meal break")}<small>${t("30 min, unpaid")}</small></button></div>`;
+    }
+  }
+  const typeField = `<div class="site-field" style="margin-top:12px"><label style="font-size:12px;font-weight:600;color:var(--sub);display:block;margin-bottom:6px">${t("Type")}</label><select class="f-input" id="clockKind"><option value="office">${t("Office (in / out)")}</option><option value="travel">${t("Travel between sites")}</option><option value="work">${t("Work onsite / offsite")}</option></select></div>`;
   const siteField = `<div class="site-field" style="margin-top:12px"><label style="font-size:12px;font-weight:600;color:var(--sub);display:block;margin-bottom:6px">${t("Site or address")}</label>${siteSel}</div>`;
   const gpsNote = `<div style="font-size:11px;color:var(--faint);margin-top:12px;display:flex;align-items:center;gap:5px;justify-content:center;text-align:center"><i class="ti ti-map-pin"></i> ${t("Your location is recorded at clock-in so the office can confirm you are at the site.")}</div>`;
   const remoteNote = `<div style="font-size:11px;color:var(--faint);margin-top:12px;display:flex;align-items:center;gap:5px;justify-content:center;text-align:center"><i class="ti ti-home"></i> ${t("Remote clock-in. No location is recorded.")}</div>`;
@@ -1439,6 +1627,7 @@ function atClock(){
       ${(open||remote)?"":typeField}
       ${(open||remote)?"":siteField}
       ${status}
+      ${breakUI}
       ${btn}
       ${remote?remoteNote:gpsNote}
     </div>
@@ -1455,14 +1644,36 @@ async function atDoClockIn(empId){
   if(dup){ toast(`${e.name.split(" ")[0]} is already clocked in`); await refresh(); renderAttendance(); return; }
   const remote = state.clockLoc==="remote";
   const siteEl=$("#clockSite");const site=remote?"Remote":(siteEl?siteEl.value.trim():"");
-  const kindEl=$("#clockKind");const kind=kindEl?kindEl.value:"work";
+  const kindEl=$("#clockKind");const kind=remote?"remote":(kindEl?kindEl.value:"work");
   const rec={employee_id:e.id,employee_name:e.name,team:e.team,kind,clock_in:new Date().toISOString(),clock_out:null,hours:null,site,lat:null,lng:null};
-  const verb=kind==="travel"?"started travel":"clocked in";
+  const verb={travel:"started travel",office:"clocked in at the office",work:"clocked in onsite",remote:"clocked in"}[kind]||"clocked in";
   const finish=async()=>{try{await DB.clockIn(rec);await refresh();toast(`${e.name.split(" ")[0]} ${verb}`);renderAttendance();}catch(err){toast("Clock-in failed");}};
   if(!remote && navigator.geolocation){navigator.geolocation.getCurrentPosition(p=>{rec.lat=+p.coords.latitude.toFixed(5);rec.lng=+p.coords.longitude.toFixed(5);finish();},()=>finish(),{timeout:8000,enableHighAccuracy:true});}
   else finish();
 }
-async function atClockOut(id){const a=ATT.find(x=>x.id===id);if(!a)return;const out=new Date().toISOString();const hrs=Math.round(((new Date(out)-new Date(a.clock_in))/3600000)*100)/100;try{await DB.clockOut(id,out,hrs);await refresh();toast(`Clocked out · ${hrs}h`);renderAttendance();}catch(e){toast("Clock-out failed");}}
+async function atClockOut(id){
+  const a=ATT.find(x=>x.id===id);if(!a)return;
+  const out=new Date().toISOString();
+  const breaks=Array.isArray(a.breaks)?a.breaks.map(b=>({...b})):[];
+  breaks.forEach(b=>{ if(!b.end) b.end=out; });
+  let unpaid=0; breaks.forEach(b=>{ if(b.kind==="meal"&&b.start&&b.end) unpaid+=Math.max(0,new Date(b.end)-new Date(b.start)); });
+  const hrs=Math.round((((new Date(out)-new Date(a.clock_in))-unpaid)/3600000)*100)/100;
+  try{ await DB.clockOut(id,out,hrs); if(breaks.length) await DB.updateEntry(id,{breaks}); await refresh(); toast(`Clocked out \u00b7 ${hrs}h`); renderAttendance(); }catch(e){ toast("Clock-out failed"); }
+}
+async function atStartBreak(id,kind){
+  const a=ATT.find(x=>x.id===id);if(!a)return;
+  const breaks=Array.isArray(a.breaks)?a.breaks.map(b=>({...b})):[];
+  if(breaks.some(b=>!b.end)){ toast(t("Already on break")); return; }
+  breaks.push({kind,start:new Date().toISOString(),end:null});
+  try{ await DB.updateEntry(id,{breaks}); await refresh(); toast(kind==="meal"?t("Meal break started"):t("Rest break started")); renderAttendance(); }catch(e){ toast("Failed"); }
+}
+async function atEndBreak(id){
+  const a=ATT.find(x=>x.id===id);if(!a)return;
+  const breaks=Array.isArray(a.breaks)?a.breaks.map(b=>({...b})):[];
+  const open=breaks.filter(b=>!b.end).pop(); if(!open)return;
+  open.end=new Date().toISOString();
+  try{ await DB.updateEntry(id,{breaks}); await refresh(); toast(t("Break ended")); renderAttendance(); }catch(e){ toast("Failed"); }
+}
 
 /* ----- attendance admin ----- */
 function atAdmin(){
@@ -1488,38 +1699,35 @@ function atAdmin(){
         <button class="btn btn-ghost" onclick="exportCSV()"><i class="ti ti-download"></i> Export CSV</button>
       </div>
       ${timesheetTable()}
-      <p style="font-size:11.5px;color:var(--faint);margin-top:14px;line-height:1.5">OT/DT shown for California uses daily thresholds (over 8h = OT, over 12h = double time). Travel time is shown as its own paid column and is not split into overtime here. The 7th-consecutive-day rule, meal and rest break premiums, and pay rates are not auto-calculated. Use this as a reviewed timesheet to hand to payroll, not as the final paycheck.</p>
+      <p style="font-size:11.5px;color:var(--faint);margin-top:14px;line-height:1.5">Hours are split into Office (non-cleaning rate), Travel between sites, and Onsite cleaning, so payroll can apply the right rate to each. Overtime, double-time, the 7th-day rule, break premiums, and the actual pay rates are applied in payroll, not here. Use this as a reviewed timesheet to hand to payroll, not as the final paycheck.</p>
     </div>`;
 }
 function sinceText(iso){const m=Math.floor((Date.now()-new Date(iso))/60000);if(m<60)return m+"m";const h=Math.floor(m/60);return h+"h "+(m%60)+"m";}
 function mapLink(a){ return (a.lat&&a.lng)?` · <a href="https://www.google.com/maps?q=${a.lat},${a.lng}" target="_blank" rel="noopener" style="color:var(--accent)">map</a>`:""; }
-function atRow(a){const tv=a.kind==="travel"?' · <span style="color:var(--warn)">travel</span>':"";return `<div class="req" style="padding:11px 13px;margin-bottom:9px"><div style="display:flex;align-items:center;gap:11px"><div class="avatar" style="width:30px;height:30px;font-size:11px;background:${avatarColor(a.team)}">${initials(a.employee_name)}</div><div style="flex:1"><div style="font-size:13.5px;font-weight:600">${esc(a.employee_name)}</div><div style="font-size:12px;color:var(--faint)">${fmtTime(a.clock_in)} ${a.clock_out?"→ "+fmtTime(a.clock_out):"→ ..."}${a.site?" · "+esc(a.site):""}${tv}${mapLink(a)}</div></div><span class="days-tag">${a.clock_out?a.hours+"h":'<span style="color:var(--ok)">active</span>'}</span></div></div>`;}
+function atRow(a){const km={travel:"travel",office:"office",remote:"remote"};const tv=km[a.kind]?` · <span style="color:var(--warn)">${km[a.kind]}</span>`:"";return `<div class="req" style="padding:11px 13px;margin-bottom:9px"><div style="display:flex;align-items:center;gap:11px"><div class="avatar" style="width:30px;height:30px;font-size:11px;background:${avatarColor(a.team)}">${initials(a.employee_name)}</div><div style="flex:1"><div style="font-size:13.5px;font-weight:600">${esc(a.employee_name)}</div><div style="font-size:12px;color:var(--faint)">${fmtTime(a.clock_in)} ${a.clock_out?"→ "+fmtTime(a.clock_out):"→ ..."}${a.site?" · "+esc(a.site):""}${tv}${mapLink(a)}</div></div><span class="days-tag">${a.clock_out?a.hours+"h":'<span style="color:var(--ok)">active</span>'}</span></div></div>`;}
 
-function splitOT(hours,team){ if(team!=="ca"){return{reg:hours,ot:0,dt:0};} let reg=Math.min(hours,8),ot=Math.max(0,Math.min(hours,12)-8),dt=Math.max(0,hours-12);return{reg,ot,dt}; }
 function timesheetData(){
   const {start,end,team}=state.tsRange;
   const rows=ATT.filter(a=>a.clock_out&&a.clock_in.slice(0,10)>=start&&a.clock_in.slice(0,10)<=end&&(team==="all"||a.team===team));
   const byEmp={};
-  rows.forEach(a=>{ const k=a.employee_id; if(!byEmp[k])byEmp[k]={name:a.employee_name,team:a.team,days:{},travel:0};
-    if(a.kind==="travel"){ byEmp[k].travel+=(a.hours||0); }
-    else { const day=a.clock_in.slice(0,10); byEmp[k].days[day]=(byEmp[k].days[day]||0)+(a.hours||0); } });
-  const out=[];
-  Object.values(byEmp).forEach(e=>{ let reg=0,ot=0,dt=0,work=0; Object.values(e.days).forEach(h=>{const s=splitOT(h,e.team);reg+=s.reg;ot+=s.ot;dt+=s.dt;work+=h;}); out.push({name:e.name,team:e.team,reg,ot,dt,travel:e.travel,total:work+e.travel,daysWorked:Object.keys(e.days).length}); });
-  return out.sort((a,b)=>a.name.localeCompare(b.name));
+  rows.forEach(a=>{ const k=a.employee_id; if(!byEmp[k])byEmp[k]={name:a.employee_name,team:a.team,days:new Set(),office:0,travel:0,onsite:0,remote:0};
+    const h=a.hours||0; byEmp[k].days.add(a.clock_in.slice(0,10));
+    if(a.kind==="travel")byEmp[k].travel+=h; else if(a.kind==="office")byEmp[k].office+=h; else if(a.kind==="remote")byEmp[k].remote+=h; else byEmp[k].onsite+=h; });
+  return Object.values(byEmp).map(e=>({name:e.name,team:e.team,daysWorked:e.days.size,office:e.office,travel:e.travel,onsite:e.onsite,remote:e.remote,total:e.office+e.travel+e.onsite+e.remote})).sort((a,b)=>a.name.localeCompare(b.name));
 }
 function r1(n){return Math.round(n*100)/100;}
 function timesheetTable(){
   const data=timesheetData();
   if(!data.length)return `<div class="empty" style="padding:30px"><i class="ti ti-table"></i><p>No completed shifts in this range.</p></div>`;
-  const tot=data.reduce((t,d)=>{t.reg+=d.reg;t.ot+=d.ot;t.dt+=d.dt;t.travel+=d.travel;t.total+=d.total;return t;},{reg:0,ot:0,dt:0,travel:0,total:0});
-  return `<div style="overflow-x:auto"><table class="ts-table"><thead><tr><th>Employee</th><th>Team</th><th class="num">Days</th><th class="num">Regular</th><th class="num">OT</th><th class="num">DT</th><th class="num">Travel</th><th class="num">Total</th></tr></thead><tbody>
-    ${data.map(d=>`<tr><td>${esc(d.name)}</td><td>${teamChip(d.team)}</td><td class="num">${d.daysWorked}</td><td class="num">${r1(d.reg)}</td><td class="num ${d.ot?'ot':''}">${r1(d.ot)}</td><td class="num ${d.dt?'dt':''}">${r1(d.dt)}</td><td class="num">${r1(d.travel)}</td><td class="num"><b>${r1(d.total)}</b></td></tr>`).join("")}
-  </tbody><tfoot><tr class="ts-foot"><td colspan="3">Total</td><td class="num">${r1(tot.reg)}</td><td class="num">${r1(tot.ot)}</td><td class="num">${r1(tot.dt)}</td><td class="num">${r1(tot.travel)}</td><td class="num">${r1(tot.total)}</td></tr></tfoot></table></div>`;
+  const tot=data.reduce((t,d)=>{t.office+=d.office;t.travel+=d.travel;t.onsite+=d.onsite;t.remote+=d.remote;t.total+=d.total;return t;},{office:0,travel:0,onsite:0,remote:0,total:0});
+  return `<div style="overflow-x:auto"><table class="ts-table"><thead><tr><th>Employee</th><th>Team</th><th class="num">Days</th><th class="num">Office</th><th class="num">Travel</th><th class="num">Onsite</th><th class="num">Remote</th><th class="num">Total</th></tr></thead><tbody>
+    ${data.map(d=>`<tr><td>${esc(d.name)}</td><td>${teamChip(d.team)}</td><td class="num">${d.daysWorked}</td><td class="num">${r1(d.office)}</td><td class="num">${r1(d.travel)}</td><td class="num">${r1(d.onsite)}</td><td class="num">${r1(d.remote)}</td><td class="num"><b>${r1(d.total)}</b></td></tr>`).join("")}
+  </tbody><tfoot><tr class="ts-foot"><td colspan="3">Total</td><td class="num">${r1(tot.office)}</td><td class="num">${r1(tot.travel)}</td><td class="num">${r1(tot.onsite)}</td><td class="num">${r1(tot.remote)}</td><td class="num">${r1(tot.total)}</td></tr></tfoot></table></div>`;
 }
 function exportCSV(){
   const data=timesheetData();
-  const head=["Employee","Team","Days worked","Regular hours","Overtime hours","Double-time hours","Travel hours","Total hours"];
-  const lines=[head.join(",")].concat(data.map(d=>[`"${d.name}"`,CONFIG.teams[d.team]?.label||d.team,d.daysWorked,r1(d.reg),r1(d.ot),r1(d.dt),r1(d.travel),r1(d.total)].join(",")));
+  const head=["Employee","Team","Days worked","Office hours","Travel hours","Onsite (cleaning) hours","Remote hours","Total hours"];
+  const lines=[head.join(",")].concat(data.map(d=>[`"${d.name}"`,CONFIG.teams[d.team]?.label||d.team,d.daysWorked,r1(d.office),r1(d.travel),r1(d.onsite),r1(d.remote),r1(d.total)].join(",")));
   const blob=new Blob([lines.join("\n")],{type:"text/csv"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`timesheet_${state.tsRange.start}_to_${state.tsRange.end}.csv`;a.click();URL.revokeObjectURL(url);toast("Timesheet exported");
 }
 function showQR(){
