@@ -1001,7 +1001,7 @@ const ONBOARD_TEMPLATE_REMOTE=[
  {key:"ack_handbook",group:"Read and acknowledge",label:"I have read and I acknowledge the Employee Handbook"},
  {key:"read_sh",group:"Read and acknowledge",label:"Read the Sexual Harassment Policy",link:"https://drive.google.com/file/d/1zeq44QjkR8Em0d_O1tYld0Ypq1H9yMsJ/view?usp=sharing"},
  {key:"ack_sh",group:"Read and acknowledge",label:"I have read and I acknowledge the Sexual Harassment Policy"},
- {key:"confid",group:"Read and acknowledge",label:"Sign the Confidentiality Agreement (from the office)"},
+ {key:"confid",group:"Read and acknowledge",label:"Sign the Confidentiality Agreement"},
  {key:"schedule",group:"Your first day",label:"Confirm your first-day schedule and working hours"}
 ];
 const onbKind=tasks=>(tasks||[]).some(t=>t.key==="agreement")?"remote":"us";
@@ -1222,23 +1222,27 @@ const DOC_KEYS=["i9","w4w9","de4","wage","dd","offer","app","handbook","confid",
 function docPct(docs){ return Math.round(DOC_KEYS.filter(k=>docs[k]===true).length/DOC_KEYS.length*100); }
 async function onbSyncProfile(id,data){
   try{
-    const name=((data["Full legal name"]||"").trim())||(((state.onboardRec||{}).name)||"").trim();
+    const name=((data["Full legal name"]||data["Your name"]||"").trim())||(((state.onboardRec||{}).name)||"").trim();
     if(!name) return;
     const profs=await DB.profiles();
     const p=profs.find(x=>((x.name||"").trim().toLowerCase())===name.toLowerCase());
-    const role=((state.onboardRec||{}).role)||"Remote Contractor";
-    if(id==="contact_info"){
-      const emg=[data["Emergency contact name"],data["Relationship to you"],data["Emergency contact phone"]].filter(Boolean).join(", ");
-      const addr=[data["Home address"],data["City and country"]].filter(Boolean).join(", ");
-      const patch={phone:data["Phone"]||null,address:addr||null,emergency_contact:emg||null};
-      if(p) await DB.updateProfile(p.id,patch);
-      else await DB.addProfile(Object.assign({name,status:"Active","class":"1099",role,team:"ph",active:true,docs:{pct:0},training:{},sick:{}},patch));
-    } else {
-      const docs=Object.assign({},(p&&p.docs)||{},{offer:true});
-      docs.pct=docPct(docs);
+    const rec=state.kiosk?(state.onboardRec||null):null;
+    const kind=rec?onbKind(rec.tasks):null;
+    const base=kind?{name,status:"Active","class":kind==="remote"?"1099":"W-2",role:(rec&&rec.role)||(kind==="remote"?"Remote Contractor":"Cleaner"),team:kind==="remote"?"ph":"ca",active:true,training:{},sick:{}}:null;
+    if(id==="ica_sign"){
+      const docs=Object.assign({},(p&&p.docs)||{},{offer:true}); docs.pct=docPct(docs);
       if(p) await DB.updateProfile(p.id,{docs});
-      else await DB.addProfile({name,status:"Active","class":"1099",role,team:"ph",active:true,address:data["Address"]||null,docs,training:{},sick:{}});
+      else if(base) await DB.addProfile(Object.assign(base,{address:data["Address"]||null,docs}));
+      return;
     }
+    const emg=[data["Emergency contact name"],data["Relationship to you"],data["Emergency contact phone"]].filter(Boolean).join(", ");
+    const addr=[data["Home address"],data["City and country"]].filter(Boolean).join(", ");
+    const patch={};
+    if(data["Phone"]) patch.phone=data["Phone"];
+    if(addr) patch.address=addr;
+    if(emg) patch.emergency_contact=emg;
+    if(p){ if(Object.keys(patch).length) await DB.updateProfile(p.id,patch); }
+    else if(base) await DB.addProfile(Object.assign(base,{docs:{pct:0}},patch));
   }catch(e){ console.error("profile sync",e); }
 }
 
@@ -1365,12 +1369,13 @@ function sopPanel(i){
 
 /* ============================================================ HR FORMS (fill & submit) + HR INBOX ============================================================ */
 const FORMS={
-  emp_info:{emoji:"\u{1F9D1}",title:"Employee Information Update",title_es:"Actualizaci\u00f3n de datos del empleado",desc:"Update your contact and emergency information.",desc_es:"Actualice su contacto e informaci\u00f3n de emergencia.",fields:[
+  emp_info:{emoji:"\u{1F9D1}",title:"Employee Information Update",title_es:"Actualizaci\u00f3n de datos del empleado",desc:"Your details go to the office and are saved in your employee record.",desc_es:"Sus datos van a la oficina y se guardan en su registro de empleado.",fields:[
     {k:"name",label:"Your name",label_es:"Su nombre",type:"text",req:true},
     {k:"phone",label:"Phone",label_es:"Tel\u00e9fono",type:"text"},
     {k:"address",label:"Home address",label_es:"Direcci\u00f3n",type:"textarea"},
     {k:"emg_name",label:"Emergency contact name",label_es:"Nombre del contacto de emergencia",type:"text"},
     {k:"emg_phone",label:"Emergency contact phone",label_es:"Tel\u00e9fono del contacto de emergencia",type:"text"},
+    {k:"emg_rel",label:"Relationship to you",label_es:"Relaci\u00f3n con usted",type:"text"},
     {k:"notes",label:"Anything else",label_es:"Algo m\u00e1s",type:"textarea"}]},
   time_fix:{emoji:"\u{23F1}\u{FE0F}",title:"Time Correction / Missed Punch",title_es:"Correcci\u00f3n de tiempo",desc:"Report a missed or wrong clock punch.",desc_es:"Reporte una marca de reloj incorrecta o faltante.",fields:[
     {k:"name",label:"Your name",label_es:"Su nombre",type:"text",req:true},
@@ -1459,7 +1464,7 @@ async function formSubmit(id){
   const rec={type:id,title:d.title,employee_name:who,submitted_by:who||"Staff",data,status:"pending",created_at:new Date().toISOString()};
   try{
     await DB.addSubmission(rec);
-    if(id==="contact_info"||id==="ica_sign") await onbSyncProfile(id,data);
+    if(id==="contact_info"||id==="ica_sign"||id==="emp_info") await onbSyncProfile(id,data);
     if(CONFIG.notifyWebhook){ try{ fetch(CONFIG.notifyWebhook,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(rec)}); }catch(e){} }
     toast(t("Sent to HR"));
     goModule(state.kiosk?"onboard":(id==="incident"?"toolkit":"documents"));
