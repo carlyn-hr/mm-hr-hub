@@ -258,6 +258,13 @@ textarea.f-input{resize:vertical;min-height:70px}
 .big-in{background:var(--ok)} .big-out{background:var(--bad)} .big-btn:hover{filter:brightness(.94)}
 .big-btn:disabled{background:var(--border-strong);cursor:not-allowed}
 .site-field{margin-bottom:14px;text-align:left}
+.onb-sig{display:flex;gap:8px;margin-top:8px;width:100%}
+.onb-sig input{flex:1;min-width:0;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-size:13.5px;font-family:inherit}
+.onb-signed{display:block;font-size:11.5px;color:#2f6f5e;margin-top:4px;font-weight:600}
+.onb-prow{display:flex;gap:10px;align-items:flex-start;padding:7px 0;font-size:13.5px;border-bottom:1px solid var(--line)}
+.onb-prow:last-child{border-bottom:none}
+.onb-prow i{margin-top:1px;color:var(--faint)}
+.onb-prow.done i{color:#2f6f5e}
 .kiosk .sidebar{display:none}
 .kiosk .topbar{justify-content:center}
 .kiosk .menu-btn{display:none}
@@ -705,6 +712,7 @@ const DB={
   async addOnboarding(o){ if(!LIVE)return null; const{data,error}=await sb.from("onboarding").insert(o).select(); if(error)throw error; return data&&data[0]; },
   async updateOnboarding(id,patch){ if(!LIVE)return; const{error}=await sb.from("onboarding").update(patch).eq("id",id); if(error)throw error; },
   async onboardingByCode(code){ if(!LIVE)return null; const{data,error}=await sb.from("onboarding").select("*").eq("code",code).limit(1); if(error)throw error; return data&&data[0]; },
+  async deleteOnboarding(id){ if(!LIVE)return; const{error}=await sb.from("onboarding").delete().eq("id",id); if(error)throw error; },
   async requests(){ if(LIVE){const{data,error}=await sb.from("leave_requests").select("*").order("created_at",{ascending:false});if(error)throw error;return data;} return clone(DEMO_REQ).sort((a,b)=>b.created_at.localeCompare(a.created_at)); },
   async attendance(){ if(LIVE){const{data,error}=await sb.from("attendance").select("*").order("clock_in",{ascending:false});if(error)throw error;return data;} return clone(DEMO_ATT).sort((a,b)=>b.clock_in.localeCompare(a.clock_in)); },
   async addRequest(r){ if(LIVE){const{error}=await sb.from("leave_requests").insert(r);if(error)throw error;return;} DEMO_REQ.push({...r,id:uid()}); },
@@ -964,7 +972,7 @@ async function empFileRemove(i,fi){
 const STAGES=["Applied","Screening","Interview","Offer","Hired"];
 const STAGE_ICON={Applied:"ti-inbox",Screening:"ti-phone-call",Interview:"ti-users",Offer:"ti-mail-forward",Hired:"ti-user-check"};
 const ONBOARD_TEMPLATE_US=[
- {key:"emp_info",group:"Your paperwork",label:"Fill out the Employee Information form",link:"https://drive.google.com/file/d/1yoyMhwhMzq6ejOZvEWfoGktoOn8cJDtJ/view?usp=sharing"},
+ {key:"emp_info",group:"Your paperwork",label:"Fill out the Employee Information form",form:"emp_info"},
  {key:"i9",group:"Your paperwork",label:"Bring your I-9 identity documents to the office"},
  {key:"w4",group:"Your paperwork",label:"Complete your W-4 (federal tax withholding)",link:"https://www.irs.gov/pub/irs-pdf/fw4.pdf"},
  {key:"de4",group:"Your paperwork",label:"Complete your DE 4 (California tax withholding)",link:"https://edd.ca.gov/siteassets/files/pdf_pub_ctr/de4.pdf"},
@@ -974,6 +982,8 @@ const ONBOARD_TEMPLATE_US=[
  {key:"read_sh",group:"Read and acknowledge",label:"Read the Sexual Harassment Policy",link:"https://drive.google.com/file/d/1zeq44QjkR8Em0d_O1tYld0Ypq1H9yMsJ/view?usp=sharing"},
  {key:"ack_sh",group:"Read and acknowledge",label:"I have read and I acknowledge the Sexual Harassment Policy"},
  {key:"wage_notice",group:"Read and acknowledge",label:"Review your California wage notice (Labor Code 2810.5), given by the office"},
+ {key:"wc_pamphlet",group:"Read and acknowledge",label:"Review the workers' compensation Time of Hire pamphlet, given by the office"},
+ {key:"ca_notices",group:"Read and acknowledge",label:"Review the California new-hire notices packet: harassment pamphlet, victims' rights, lactation, and paid sick leave"},
  {key:"confid",group:"Read and acknowledge",label:"Sign the Confidentiality Agreement (from the office)"},
  {key:"harass_trn",group:"Required training",label:"Complete harassment prevention training"},
  {key:"iipp",group:"Required training",label:"Complete IIPP and safety orientation"},
@@ -983,21 +993,18 @@ const ONBOARD_TEMPLATE_US=[
  {key:"schedule",group:"Your first day",label:"Confirm your first-day schedule and site"}
 ];
 const ONBOARD_TEMPLATE_REMOTE=[
- {key:"c_info",group:"Your paperwork",label:"Send your full contact details and an emergency contact to the office"},
- {key:"w8ben",group:"Your paperwork",label:"Complete your W-8BEN (foreign contractor tax form)",link:"https://www.irs.gov/pub/irs-pdf/fw8ben.pdf"},
  {key:"agreement",group:"Your paperwork",label:"Sign your Independent Contractor Agreement (from the office)"},
- {key:"payment",group:"Your paperwork",label:"Confirm your payment method and invoicing details with the office"},
+ {key:"dd",group:"Your paperwork",label:"Set up direct deposit or your payment details",link:"https://drive.google.com/file/d/11JIsX39XDwzdVpSNI4Hw0G6xSdvy5_Nh/view?usp=sharing"},
+ {key:"read_handbook",group:"Read and acknowledge",label:"Read the Employee Handbook",link:"https://drive.google.com/file/d/1lBw2KarZiKs5WJeOWCmQFrSwAHVwZg_Y/view?usp=sharing"},
+ {key:"ack_handbook",group:"Read and acknowledge",label:"I have read and I acknowledge the Employee Handbook"},
+ {key:"read_sh",group:"Read and acknowledge",label:"Read the Sexual Harassment Policy",link:"https://drive.google.com/file/d/1zeq44QjkR8Em0d_O1tYld0Ypq1H9yMsJ/view?usp=sharing"},
+ {key:"ack_sh",group:"Read and acknowledge",label:"I have read and I acknowledge the Sexual Harassment Policy"},
  {key:"confid",group:"Read and acknowledge",label:"Sign the Confidentiality Agreement (from the office)"},
- {key:"conduct",group:"Read and acknowledge",label:"Read the Code of Conduct and Social Media policies in the Hub"},
- {key:"privacy",group:"Read and acknowledge",label:"Review client data privacy and confidentiality expectations"},
- {key:"tools",group:"Getting set up",label:"Confirm your computer, internet, and backup power are ready for the role"},
- {key:"accounts",group:"Getting set up",label:"Get access to your work accounts and communication channels"},
- {key:"schedule",group:"Getting set up",label:"Confirm your working hours and overlap with the California office"},
- {key:"lead",group:"Getting set up",label:"Meet your point of contact and walk through your first tasks"}
+ {key:"schedule",group:"Your first day",label:"Confirm your first-day schedule and working hours"}
 ];
-const onbKind=tasks=>(tasks||[]).some(t=>t.key==="w8ben")?"remote":"us";
+const onbKind=tasks=>(tasks||[]).some(t=>t.key==="agreement")?"remote":"us";
 const genCode=()=>{const a="ABCDEFGHJKMNPQRSTUVWXYZ23456789";let s="";for(let i=0;i<6;i++)s+=a[Math.floor(Math.random()*a.length)];return s;};
-function newTasks(kind){ return (kind==="remote"?ONBOARD_TEMPLATE_REMOTE:ONBOARD_TEMPLATE_US).map(t=>({key:t.key,group:t.group,label:t.label,link:t.link||null,done:false,ts:null})); }
+function newTasks(kind){ return (kind==="remote"?ONBOARD_TEMPLATE_REMOTE:ONBOARD_TEMPLATE_US).map(t=>({key:t.key,group:t.group,label:t.label,link:t.link||null,form:t.form||null,done:false,ts:null,sig:null})); }
 function onbBaseLink(code){ return location.origin+location.pathname+"#onboard="+code; }
 function copyText(t){ try{ navigator.clipboard.writeText(t); }catch(e){ const ta=document.createElement("textarea"); ta.value=t; document.body.appendChild(ta); ta.select(); try{document.execCommand("copy");}catch(_){} document.body.removeChild(ta); } }
 
@@ -1102,9 +1109,9 @@ function recOnboard(){
   const onbs=state.rec.onbs||[];
   let html=`<div class="rec-actionbar"><button class="btn btn-primary btn-sm" onclick="onbForm()"><i class="ti ti-plus"></i> New onboarding</button><span class="rec-count">${onbs.length} total</span></div>`;
   if(!onbs.length) html+=`<div class="empty"><i class="ti ti-clipboard-off"></i><p>No onboarding yet. Hire a candidate from the pipeline, or add one here.</p></div>`;
-  html+=onbs.map(o=>{ const tasks=o.tasks||[]; const done=tasks.filter(t=>t.done).length; const pct=tasks.length?Math.round(done/tasks.length*100):0; const complete=o.status==="complete"||pct===100;
-    return `<div class="card onb-card"><div style="flex:1;min-width:0"><div class="post-title">${esc(o.name||"New hire")}</div><div class="post-meta"><span class="team-chip ${onbKind(o.tasks)==="remote"?"ph":"ca"}">${onbKind(o.tasks)==="remote"?"Remote":"US crew"}</span> ${esc(o.role||"Crew")}${o.code?` · code <b>${esc(o.code)}</b>`:""}</div><div class="doc-bar" style="margin-top:9px"><div class="doc-bar-fill" style="width:${pct}%"></div></div><div class="doc-pct">${done} of ${tasks.length} done · ${pct}%${complete?" · complete":""}</div></div>
-      <div class="post-side"><button class="ic-btn" title="Copy the new-hire link" onclick="onbCopy('${o.code}')"><i class="ti ti-link"></i></button><button class="ic-btn" title="Open as the new hire" onclick="onbOpen('${o.code}')"><i class="ti ti-external-link"></i></button></div></div>`; }).join("");
+  html+=onbs.map((o,i)=>{ const tasks=o.tasks||[]; const done=tasks.filter(t=>t.done).length; const pct=tasks.length?Math.round(done/tasks.length*100):0; const complete=o.status==="complete"||pct===100;
+    return `<div class="card onb-card" style="cursor:pointer" onclick="onbPanel(${i})"><div style="flex:1;min-width:0"><div class="post-title">${esc(o.name||"New hire")}</div><div class="post-meta"><span class="team-chip ${onbKind(o.tasks)==="remote"?"ph":"ca"}">${onbKind(o.tasks)==="remote"?"Remote":"US crew"}</span> ${esc(o.role||"Crew")}${o.code?` · code <b>${esc(o.code)}</b>`:""}</div><div class="doc-bar" style="margin-top:9px"><div class="doc-bar-fill" style="width:${pct}%"></div></div><div class="doc-pct">${done} of ${tasks.length} done · ${pct}%${complete?" · complete":""}</div></div>
+      <div class="post-side"><button class="ic-btn" title="Copy the new-hire link" onclick="event.stopPropagation();onbCopy('${o.code}')"><i class="ti ti-link"></i></button><i class="ti ti-chevron-right" style="color:var(--faint)"></i></div></div>`; }).join("");
   return html;
 }
 function onbForm(){
@@ -1118,7 +1125,43 @@ function onbForm(){
 }
 async function onbSave(){ const name=($("#obName").value||"").trim(); if(!name){ toast("Name is required"); return; } const code=genCode(); try{ await DB.addOnboarding({name,role:($("#obRole").value||"").trim()||null,email:($("#obEmail").value||"").trim()||null,start_date:$("#obStart").value||null,code,tasks:newTasks((($("#obKind")||{}).value)||"us"),status:"in_progress"}); }catch(e){ toast("Could not create"); return; } closeModal(); await reloadRec(); toast("Onboarding created, code "+code); }
 function onbCopy(code){ copyText(onbBaseLink(code)); toast("New-hire link copied"); }
-function onbOpen(code){ window.open(onbBaseLink(code),"_blank"); }
+function onbPanel(i){
+  const o=(state.rec.onbs||[])[i]; if(!o)return;
+  const tasks=o.tasks||[]; const done=tasks.filter(t=>t.done).length; const pct=tasks.length?Math.round(done/tasks.length*100):0;
+  const kind=onbKind(tasks); const kindLbl=kind==="remote"?"Remote contractor":"US crew";
+  $("#pCat").innerHTML=`<span class="team-chip ${kind==="remote"?"ph":"ca"}">${kindLbl}</span>`;
+  $("#pTitle").textContent=o.name||"New hire";
+  $("#pBadges").innerHTML=`<span class="badge">${esc(o.role||"Crew")}</span>${o.code?`<span class="badge">code ${esc(o.code)}</span>`:""}`;
+  const groups=[]; tasks.forEach(t=>{ if(!groups.includes(t.group)) groups.push(t.group); });
+  const secs=groups.map(g=>`<div class="emp-sec"><div class="emp-sec-h">${esc(g)}</div>${tasks.filter(t=>t.group===g).map(t=>`<div class="onb-prow ${t.done?"done":""}"><i class="ti ${t.done?"ti-circle-check-filled":"ti-circle"}"></i><div style="flex:1;min-width:0"><div>${esc(t.label)}</div>${t.done&&t.sig?`<div class="onb-signed">Signed by ${esc(t.sig)} \u00b7 ${t.ts?new Date(t.ts).toLocaleDateString():""}</div>`:(t.done&&t.ts?`<div class="onb-signed">Done \u00b7 ${new Date(t.ts).toLocaleDateString()}</div>`:"")}</div></div>`).join("")}</div>`).join("");
+  $("#pBody").innerHTML=`<div class="doc-bar"><div class="doc-bar-fill" style="width:${pct}%"></div></div><div class="doc-pct" style="margin-bottom:14px">${done} of ${tasks.length} done \u00b7 ${pct}%</div>${secs}`;
+  $("#pFoot").innerHTML=`<button class="btn btn-primary" style="width:100%" onclick="onbCopy('${o.code}')"><i class="ti ti-link"></i> Copy the new-hire link</button>
+    <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="onbReceipt(${i})"><i class="ti ti-download"></i> Download signed acknowledgments</button>
+    <button class="btn btn-ghost" style="width:100%;margin-top:8px;color:var(--bad)" onclick="onbDelete('${o.id}')"><i class="ti ti-trash"></i> Delete this onboarding</button>`;
+  $("#panel").classList.add("open");$("#panelScrim").classList.add("open");$("#pBody").scrollTop=0;
+}
+function onbReceipt(i){
+  const o=(state.rec.onbs||[])[i]; if(!o)return;
+  const tasks=o.tasks||[]; const kind=onbKind(tasks)==="remote"?"Remote contractor":"US crew (California W-2)";
+  const lines=["M & M Solutions LLC","Onboarding record and acknowledgment receipt","", "Name: "+(o.name||""),"Role: "+(o.role||""),"Checklist: "+kind,"Code: "+(o.code||""),"Generated: "+new Date().toLocaleString(),""];
+  let g="";
+  tasks.forEach(t=>{ if(t.group!==g){ g=t.group; lines.push(""); lines.push(g.toUpperCase()); }
+    let l=(t.done?"[x] ":"[ ] ")+t.label;
+    if(t.sig) l+="  |  Signed by "+t.sig+(t.ts?" on "+new Date(t.ts).toLocaleString():"");
+    else if(t.done&&t.ts) l+="  |  Completed "+new Date(t.ts).toLocaleString();
+    lines.push(l); });
+  lines.push(""); lines.push("This receipt was generated from the M & M Solutions HR Hub. Signatures were typed by the new hire on their private onboarding page and are stored with a timestamp.");
+  const blob=new Blob([lines.join("\n")],{type:"text/plain"});
+  const aEl=document.createElement("a"); aEl.href=URL.createObjectURL(blob);
+  aEl.download="onboarding-"+((o.name||"hire").replace(/[^a-z0-9]+/gi,"-").toLowerCase())+"-acknowledgments.txt";
+  document.body.appendChild(aEl); aEl.click(); document.body.removeChild(aEl); URL.revokeObjectURL(aEl.href);
+  toast("Receipt downloaded");
+}
+async function onbDelete(id){
+  if(!confirm("Delete this onboarding permanently? The new-hire link will stop working."))return;
+  try{ await DB.deleteOnboarding(id); }catch(e){ toast("Could not delete"); return; }
+  closePanel(); await reloadRec(); toast("Onboarding deleted");
+}
 
 async function renderOnboard(){
   const box=$("#view"); if(!box)return;
@@ -1140,7 +1183,12 @@ function onbView(r){
   const secs=groups.map(g=>{ const items=tasks.filter(t=>t.group===g);
     return `<div class="onb-group"><div class="onb-group-h">${esc(g)}</div>${items.map(t=>`<div class="onb-task ${t.done?"done":""}">
         <button class="onb-check" onclick="onbToggle('${t.key}')"><i class="ti ${t.done?"ti-circle-check-filled":"ti-circle"}"></i></button>
-        <div class="onb-task-main"><span class="onb-task-label">${esc(t.label)}</span>${t.link?`<a class="onb-task-link" href="${esc(t.link)}" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Open</a>`:""}</div></div>`).join("")}</div>`; }).join("");
+        <div class="onb-task-main"><span class="onb-task-label">${esc(t.label)}</span>
+          ${t.link?`<a class="onb-task-link" href="${esc(t.link)}" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Open</a>`:""}
+          ${t.form?`<button class="onb-task-link" onclick="onbFillForm('${t.form}')"><i class="ti ti-forms"></i> Fill it out here</button>`:""}
+          ${t.done&&t.sig?`<span class="onb-signed">Signed by ${esc(t.sig)} \u00b7 ${t.ts?new Date(t.ts).toLocaleDateString():""}</span>`:""}
+          ${state._sigKey===t.key&&!t.done?`<div class="onb-sig"><input id="sigIn" placeholder="Type your full legal name to sign" maxlength="80"><button class="btn btn-primary btn-sm" onclick="onbSign('${t.key}')">Sign</button></div>`:""}
+        </div></div>`).join("")}</div>`; }).join("");
   const doneMsg = pct===100 ? `<div class="onb-complete"><i class="ti ti-confetti"></i> All done. Welcome aboard. The office will follow up on anything that needs a signature in person.</div>` : "";
   const first=((r.name||"").split(" ")[0])||"there";
   return `<div class="onb-wrap">
@@ -1151,11 +1199,23 @@ function onbView(r){
 }
 async function onbToggle(key){
   const r=state.onboardRec; if(!r)return; const tk=(r.tasks||[]).find(x=>x.key===key); if(!tk)return;
-  tk.done=!tk.done; tk.ts=tk.done?new Date().toISOString():null;
-  const complete=(r.tasks||[]).every(x=>x.done);
+  if(!tk.done && key.indexOf("ack_")===0){ state._sigKey = state._sigKey===key?null:key; renderOnboard(); return; }
+  tk.done=!tk.done; tk.ts=tk.done?new Date().toISOString():null; if(!tk.done) tk.sig=null;
+  await onbPersist();
+}
+async function onbSign(key){
+  const r=state.onboardRec; if(!r)return; const tk=(r.tasks||[]).find(x=>x.key===key); if(!tk)return;
+  const name=(($("#sigIn")||{}).value||"").trim();
+  if(!name){ toast("Type your full name to sign"); return; }
+  tk.done=true; tk.sig=name; tk.ts=new Date().toISOString(); state._sigKey=null;
+  await onbPersist();
+}
+async function onbPersist(){
+  const r=state.onboardRec; const complete=(r.tasks||[]).every(x=>x.done);
   renderOnboard();
   try{ await DB.updateOnboarding(r.id,{tasks:r.tasks,status:complete?"complete":"in_progress"}); }catch(e){ toast("Saved on this device, will sync when online"); }
 }
+function onbFillForm(id){ formOpen(id); }
 
 function renderTraining(){
   const shLink = LANG==="es"
@@ -1260,7 +1320,7 @@ const SOP_ARTICLES=[
   {t:"Approving time off and balances",a:"Admin",b:"<p>Open Time off and switch to Manager view. Pending requests show who, what type, the dates, and the balance impact. Approve or Decline. Approving a sick request deducts the hours (8 per day) from that person's bank. You can Revoke an approval to add the hours back.</p><p>To set a balance directly, open People, then Edit next to a person, and change the sick hours.</p>"},
   {t:"Managing sick-leave balances",a:"Admin",b:"<p>Sick leave is frontloaded at 40 hours (5 days) a year and tracked in hours. New hires start at 0 and become eligible on their 90th day. The HR Dashboard flags anyone past 90 days who still needs their 40 set. Set it in People, then Edit.</p><p>Vacation and PTO are not tracked, since California does not require them.</p>"},
   {t:"Using the Directory",a:"Admin",b:"<p>Directory lists the whole crew. Tap a name to open their card with contact, employment, pay, documents, training, and sick balance. SSN and date of birth are kept out on purpose. You can attach documents to a card: see the SOP on attaching documents.</p>"},
-  {t:"Recruitment and onboarding",a:"Admin",b:"<p>Recruitment has three tabs. Pipeline moves candidates from Applied to Hired. Job postings hold your open roles. Onboarding tracks new hires. When you move a candidate to Hired, pick the checklist that fits: US crew (California W-2 paperwork, handbook, and training) or Remote contractor (W-8BEN, contractor agreement, and setup). The Hub makes a private six-character code. Copy the link and send it to the new hire, who works through their checklist at their own pace.</p>"},
+  {t:"Recruitment and onboarding",a:"Admin",b:"<p>Recruitment has three tabs. Pipeline moves candidates from Applied to Hired. Job postings hold your open roles. Onboarding tracks new hires. When you move a candidate to Hired, pick the checklist that fits: US crew (California W-2 paperwork, handbook, and training) or Remote contractor (W-8BEN, contractor agreement, and setup). The Hub makes a private six-character code. Copy the link and send it to the new hire, who works through their checklist at their own pace.</p><p>Acknowledgment steps ask the new hire to type their full legal name, which is stored with a timestamp as their signature. Tap any onboarding card to open its panel, where you can review progress and signatures, copy the link, download a signed acknowledgment receipt, or delete the onboarding.</p>"},
   {t:"Attaching a document to an employee",a:"Admin",b:"<p>Upload the file to Google Drive first and set its sharing so the office can open it. Copy the share link. In the Directory, open the person's card, go to Files, tap Add file, paste the link, give it a label like W-4 or ID, and save. The link shows on their card. Nothing is stored in the Hub itself, so keep the Drive access controlled.</p>"},
   {t:"For super admin: people and passcodes",a:"Super admin",b:"<p>Super admin can add and remove people in Time off, then People. Removing is a soft delete: the person leaves the active lists but the record stays.</p><p>Change the admin and super-admin passcodes before launch. They are set in the Hub file, so send the new codes to have them baked in.</p>"}
 ];
@@ -1341,7 +1401,7 @@ function fieldHTML(f){
 }
 function formOpen(id){
   const d=FORMS[id]; if(!d)return; state._formId=id;
-  const back=id==="incident"?"goModule('toolkit')":"goModule('documents')";
+  const back=state.kiosk?"goModule('onboard')":(id==="incident"?"goModule('toolkit')":"goModule('documents')");
   $("#view").innerHTML=pageHead(t("HR Forms"),fTitle(d),fDesc(d))
    +`<div class="card" style="max-width:640px">${d.fields.map(fieldHTML).join("")}
      <div style="display:flex;gap:10px;margin-top:20px">
@@ -1363,7 +1423,7 @@ async function formSubmit(id){
     await DB.addSubmission(rec);
     if(CONFIG.notifyWebhook){ try{ fetch(CONFIG.notifyWebhook,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(rec)}); }catch(e){} }
     toast(t("Sent to HR"));
-    goModule(id==="incident"?"toolkit":"documents");
+    goModule(state.kiosk?"onboard":(id==="incident"?"toolkit":"documents"));
   }catch(e){ toast(t("Could not send")); }
 }
 async function renderInbox(){
