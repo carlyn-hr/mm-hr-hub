@@ -996,15 +996,28 @@ const ONBOARD_TEMPLATE_US=[
 const ONBOARD_TEMPLATE_REMOTE=[
  {key:"contact",group:"Your paperwork",label:"Fill out your contact details and emergency contact",form:"contact_info"},
  {key:"agreement",group:"Your paperwork",label:"Sign your Independent Contractor Agreement",form:"ica_sign"},
- {key:"dd",group:"Your paperwork",label:"Set up direct deposit or your payment details",link:"https://drive.google.com/file/d/11JIsX39XDwzdVpSNI4Hw0G6xSdvy5_Nh/view?usp=sharing"},
+ {key:"payment",group:"Your paperwork",label:"Confirm your payment method",form:"payment_info"},
  {key:"read_handbook",group:"Read and acknowledge",label:"Read the Employee Handbook",link:"https://drive.google.com/file/d/1lBw2KarZiKs5WJeOWCmQFrSwAHVwZg_Y/view?usp=sharing"},
  {key:"ack_handbook",group:"Read and acknowledge",label:"I have read and I acknowledge the Employee Handbook"},
  {key:"read_sh",group:"Read and acknowledge",label:"Read the Sexual Harassment Policy",link:"https://drive.google.com/file/d/1zeq44QjkR8Em0d_O1tYld0Ypq1H9yMsJ/view?usp=sharing"},
  {key:"ack_sh",group:"Read and acknowledge",label:"I have read and I acknowledge the Sexual Harassment Policy"},
- {key:"confid",group:"Read and acknowledge",label:"Sign the Confidentiality Agreement"},
+ {key:"confid",group:"Read and acknowledge",label:"Sign the Confidentiality Agreement",form:"confid_sign"},
  {key:"schedule",group:"Your first day",label:"Confirm your first-day schedule and working hours"}
 ];
 const onbKind=tasks=>(tasks||[]).some(t=>t.key==="agreement")?"remote":"us";
+function onbMigrate(o){
+  if(!o||!Array.isArray(o.tasks)||!o.tasks.length) return false;
+  const cur=newTasks(onbKind(o.tasks));
+  const curKeys=cur.map(t=>t.key).join(","), oldKeys=o.tasks.map(t=>t.key).join(",");
+  if(curKeys===oldKeys){
+    let changed=false;
+    o.tasks.forEach((t,i)=>{ const c=cur[i]; if(t.label!==c.label||(t.form||null)!==(c.form||null)||(t.link||null)!==(c.link||null)){ t.label=c.label; t.form=c.form||null; t.link=c.link||null; changed=true; } });
+    return changed;
+  }
+  const old=new Map(o.tasks.map(t=>[t.key,t]));
+  o.tasks=cur.map(t=>{ const prev=old.get(t.key); return prev?Object.assign(t,{done:!!prev.done,ts:prev.ts||null,sig:prev.sig||null}):t; });
+  return true;
+}
 const genCode=()=>{const a="ABCDEFGHJKMNPQRSTUVWXYZ23456789";let s="";for(let i=0;i<6;i++)s+=a[Math.floor(Math.random()*a.length)];return s;};
 function newTasks(kind){ return (kind==="remote"?ONBOARD_TEMPLATE_REMOTE:ONBOARD_TEMPLATE_US).map(t=>({key:t.key,group:t.group,label:t.label,link:t.link||null,form:t.form||null,done:false,ts:null,sig:null})); }
 function onbBaseLink(code){ return location.origin+location.pathname+"#onboard="+code; }
@@ -1014,7 +1027,7 @@ async function renderRecruit(){
   if(!state.isAdmin){ $("#view").innerHTML=pageHead("Recruitment","Recruitment","")+`<div class="empty"><i class="ti ti-lock"></i><p>Sign in as admin to manage recruitment.</p></div>`; return; }
   $("#view").innerHTML=pageHead("Recruitment","Recruitment","Post roles, move candidates from applied to hired, then hand off onboarding.")
     + recTabBar() + `<div id="recBody"><div class="card"><div style="color:var(--sub);font-size:13.5px"><i class="ti ti-loader-2"></i> Loading...</div></div></div>`;
-  try{ const [apps,posts,onbs]=await Promise.all([DB.applicants(),DB.postings(),DB.onboardings()]); state.rec={apps,posts,onbs}; }
+  try{ const [apps,posts,onbs]=await Promise.all([DB.applicants(),DB.postings(),DB.onboardings()]); state.rec={apps,posts,onbs}; onbs.forEach(o=>{ if(onbMigrate(o)){ try{ DB.updateOnboarding(o.id,{tasks:o.tasks}); }catch(e){} } }); }
   catch(e){ $("#recBody").innerHTML=`<div class="empty"><i class="ti ti-database-off"></i><p>Recruitment tables aren't set up yet. Run the recruitment seed in Supabase, then refresh this page.</p></div>`; return; }
   recPaint();
 }
@@ -1023,7 +1036,7 @@ function recTabBar(){
   return `<div class="rec-tabs">${tab("pipeline","Pipeline","ti-layout-kanban")}${tab("postings","Job postings","ti-briefcase")}${tab("onboard","Onboarding","ti-clipboard-check")}</div>`;
 }
 function setRecTab(t){ state.recruitTab=t; const bar=$(".rec-tabs"); if(bar) bar.outerHTML=recTabBar(); recPaint(); }
-async function reloadRec(){ try{ const [apps,posts,onbs]=await Promise.all([DB.applicants(),DB.postings(),DB.onboardings()]); state.rec={apps,posts,onbs}; }catch(e){} recPaint(); }
+async function reloadRec(){ try{ const [apps,posts,onbs]=await Promise.all([DB.applicants(),DB.postings(),DB.onboardings()]); state.rec={apps,posts,onbs}; onbs.forEach(o=>{ if(onbMigrate(o)){ try{ DB.updateOnboarding(o.id,{tasks:o.tasks}); }catch(e){} } }); }catch(e){} recPaint(); }
 function recPaint(){ const b=$("#recBody"); if(!b)return; b.innerHTML = state.recruitTab==="postings"?recPostings():(state.recruitTab==="onboard"?recOnboard():recPipeline()); }
 
 function recPipeline(){
@@ -1170,6 +1183,7 @@ async function renderOnboard(){
   if(state.onboardCode && state.onboardRec===null){
     box.innerHTML=`<div class="onb-wrap"><div class="card"><div style="color:var(--sub)"><i class="ti ti-loader-2"></i> Loading your onboarding...</div></div></div>`;
     try{ const r=await DB.onboardingByCode(state.onboardCode); state.onboardRec=r||false; }catch(e){ state.onboardRec=false; }
+    if(state.onboardRec&&onbMigrate(state.onboardRec)){ try{ DB.updateOnboarding(state.onboardRec.id,{tasks:state.onboardRec.tasks}); }catch(e){} }
   }
   if(!state.onboardCode || state.onboardRec===false){ box.innerHTML=onbEntry(!!state.onboardCode); return; }
   box.innerHTML=onbView(state.onboardRec);
@@ -1217,7 +1231,15 @@ async function onbPersist(){
   renderOnboard();
   try{ await DB.updateOnboarding(r.id,{tasks:r.tasks,status:complete?"complete":"in_progress"}); }catch(e){ toast("Saved on this device, will sync when online"); }
 }
-function onbFillForm(id){ formOpen(id); }
+function onbFillForm(id){ formOpenPanel(id); }
+function formOpenPanel(id){
+  const d=FORMS[id]; if(!d)return; state._formId=id; state._formPanel=true;
+  $("#pCat").innerHTML=`<span class="team-dot" style="background:var(--accent)"></span><span style="color:var(--accent)">${d.emoji||""} ${t("HR Forms")}</span>`;
+  $("#pTitle").textContent=fTitle(d); $("#pBadges").innerHTML="";
+  $("#pBody").innerHTML=`<div style="font-size:13px;color:var(--sub);line-height:1.5;margin-bottom:4px">${esc(fDesc(d))}</div>`+d.fields.map(fieldHTML).join("")+`<div style="font-size:11.5px;color:var(--faint);margin-top:14px"><i class="ti ti-shield-lock"></i> ${t("This goes straight to HR. Do not include bank account or Social Security numbers here.")}</div>`;
+  $("#pFoot").innerHTML=`<button class="btn btn-primary" style="width:100%" onclick="formSubmit('${id}')"><i class="ti ti-send"></i> ${t("Submit to HR")}</button><button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="state._formPanel=false;closePanel()">${t("Cancel")}</button>`;
+  $("#panel").classList.add("open");$("#panelScrim").classList.add("open");$("#pBody").scrollTop=0;
+}
 const DOC_KEYS=["i9","w4w9","de4","wage","dd","offer","app","handbook","confid","harass"];
 function docPct(docs){ return Math.round(DOC_KEYS.filter(k=>docs[k]===true).length/DOC_KEYS.length*100); }
 async function onbSyncProfile(id,data){
@@ -1229,8 +1251,9 @@ async function onbSyncProfile(id,data){
     const rec=state.kiosk?(state.onboardRec||null):null;
     const kind=rec?onbKind(rec.tasks):null;
     const base=kind?{name,status:"Active","class":kind==="remote"?"1099":"W-2",role:(rec&&rec.role)||(kind==="remote"?"Remote Contractor":"Cleaner"),team:kind==="remote"?"ph":"ca",active:true,training:{},sick:{}}:null;
-    if(id==="ica_sign"){
-      const docs=Object.assign({},(p&&p.docs)||{},{offer:true}); docs.pct=docPct(docs);
+    if(id==="ica_sign"||id==="confid_sign"){
+      const dk=id==="ica_sign"?"offer":"confid";
+      const docs=Object.assign({},(p&&p.docs)||{}); docs[dk]=true; docs.pct=docPct(docs);
       if(p) await DB.updateProfile(p.id,{docs});
       else if(base) await DB.addProfile(Object.assign(base,{address:data["Address"]||null,docs}));
       return;
@@ -1429,6 +1452,16 @@ FORMS.ica_sign={emoji:"\u{270D}",title:"Independent Contractor Agreement",title_
     {k:"address",label:"Address",label_es:"Direcci\u00f3n",type:"textarea",req:true},
     {k:"sign_date",label:"Date of signing",label_es:"Fecha de firma",type:"date",req:true},
     {k:"signature",label:"Type your full legal name to sign",label_es:"Escriba su nombre legal completo para firmar",type:"text",req:true}]};
+FORMS.payment_info={emoji:"\u{1F4B3}",title:"Confirm Your Payment Method",title_es:"Confirme su m\u00e9todo de pago",desc:"Tell the office how you want to be paid. Do not enter bank account numbers here. If you choose direct deposit, the office will send you the authorization form securely.",desc_es:"Indique a la oficina c\u00f3mo desea recibir su pago. No escriba n\u00fameros de cuenta bancaria aqu\u00ed. Si elige dep\u00f3sito directo, la oficina le enviar\u00e1 el formulario de autorizaci\u00f3n de forma segura.",fields:[
+    {k:"name",label:"Full legal name",label_es:"Nombre legal completo",type:"text",req:true},
+    {k:"method",label:"Payment method",label_es:"M\u00e9todo de pago",type:"select",options:["Direct deposit (US bank)","Wise","PayPal","GCash","Other"]},
+    {k:"acct_name",label:"Name on the account",label_es:"Nombre en la cuenta",type:"text"},
+    {k:"handle",label:"Account email or mobile number (Wise, PayPal, or GCash)",label_es:"Correo o n\u00famero m\u00f3vil de la cuenta (Wise, PayPal o GCash)",type:"text"},
+    {k:"notes",label:"Anything else",label_es:"Algo m\u00e1s",type:"textarea"}]};
+FORMS.confid_sign={emoji:"\u{1F510}",title:"Confidentiality Agreement",title_es:"Acuerdo de confidencialidad",desc:"Sign the Confidentiality Agreement the office sent you. Typing your full legal name below is your electronic signature, and it is saved in your record with a timestamp.",desc_es:"Firme el acuerdo de confidencialidad que la oficina le envi\u00f3. Escribir su nombre legal completo abajo es su firma electr\u00f3nica y se guarda en su registro con fecha y hora.",fields:[
+    {k:"name",label:"Full legal name",label_es:"Nombre legal completo",type:"text",req:true},
+    {k:"sign_date",label:"Date of signing",label_es:"Fecha de firma",type:"date",req:true},
+    {k:"signature",label:"Type your full legal name to sign",label_es:"Escriba su nombre legal completo para firmar",type:"text",req:true}]};
 const HR_FORM_IDS=["emp_info","time_fix","injury","expense","records","pdl"];
 function fLabel(f){ return LANG==="es"&&f.label_es?f.label_es:f.label; }
 function fTitle(d){ return d?(LANG==="es"&&d.title_es?d.title_es:d.title):""; }
@@ -1464,10 +1497,11 @@ async function formSubmit(id){
   const rec={type:id,title:d.title,employee_name:who,submitted_by:who||"Staff",data,status:"pending",created_at:new Date().toISOString()};
   try{
     await DB.addSubmission(rec);
-    if(id==="contact_info"||id==="ica_sign"||id==="emp_info") await onbSyncProfile(id,data);
+    if(id==="contact_info"||id==="ica_sign"||id==="emp_info"||id==="confid_sign") await onbSyncProfile(id,data);
     if(CONFIG.notifyWebhook){ try{ fetch(CONFIG.notifyWebhook,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(rec)}); }catch(e){} }
     toast(t("Sent to HR"));
-    goModule(state.kiosk?"onboard":(id==="incident"?"toolkit":"documents"));
+    if(state._formPanel){ state._formPanel=false; closePanel(); if(state.kiosk&&state.module==="onboard") renderOnboard(); }
+    else goModule(state.kiosk?"onboard":(id==="incident"?"toolkit":"documents"));
   }catch(e){ toast(t("Could not send")); }
 }
 async function renderInbox(){
