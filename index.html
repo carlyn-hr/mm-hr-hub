@@ -697,6 +697,7 @@ const DB={
   async employees(){ if(LIVE){const{data,error}=await sb.from("employees").select("*").order("name");if(error)throw error;return data.filter(e=>e.active!==false);} return clone(DEMO_EMP).filter(e=>e.active!==false); },
   async profiles(){ if(LIVE){const{data,error}=await sb.from("employee_profiles").select("*").order("name");if(error)throw error;return (data||[]).filter(e=>e.active!==false);} return []; },
   async updateProfile(id,patch){ if(!LIVE)return; const{error}=await sb.from("employee_profiles").update(patch).eq("id",id); if(error)throw error; },
+  async addProfile(p){ if(!LIVE)return; const{error}=await sb.from("employee_profiles").insert(p); if(error)throw error; },
   async addSubmission(o){ if(LIVE){const{error}=await sb.from("hr_submissions").insert([o]);if(error)throw error;} return true; },
   async submissions(){ if(LIVE){const{data,error}=await sb.from("hr_submissions").select("*").order("created_at",{ascending:false});if(error)throw error;return data||[];} return []; },
   async updateSubmission(id,patch){ if(LIVE){const{error}=await sb.from("hr_submissions").update(patch).eq("id",id);if(error)throw error;} },
@@ -993,7 +994,8 @@ const ONBOARD_TEMPLATE_US=[
  {key:"schedule",group:"Your first day",label:"Confirm your first-day schedule and site"}
 ];
 const ONBOARD_TEMPLATE_REMOTE=[
- {key:"agreement",group:"Your paperwork",label:"Sign your Independent Contractor Agreement (from the office)"},
+ {key:"contact",group:"Your paperwork",label:"Fill out your contact details and emergency contact",form:"contact_info"},
+ {key:"agreement",group:"Your paperwork",label:"Sign your Independent Contractor Agreement",form:"ica_sign"},
  {key:"dd",group:"Your paperwork",label:"Set up direct deposit or your payment details",link:"https://drive.google.com/file/d/11JIsX39XDwzdVpSNI4Hw0G6xSdvy5_Nh/view?usp=sharing"},
  {key:"read_handbook",group:"Read and acknowledge",label:"Read the Employee Handbook",link:"https://drive.google.com/file/d/1lBw2KarZiKs5WJeOWCmQFrSwAHVwZg_Y/view?usp=sharing"},
  {key:"ack_handbook",group:"Read and acknowledge",label:"I have read and I acknowledge the Employee Handbook"},
@@ -1216,6 +1218,29 @@ async function onbPersist(){
   try{ await DB.updateOnboarding(r.id,{tasks:r.tasks,status:complete?"complete":"in_progress"}); }catch(e){ toast("Saved on this device, will sync when online"); }
 }
 function onbFillForm(id){ formOpen(id); }
+const DOC_KEYS=["i9","w4w9","de4","wage","dd","offer","app","handbook","confid","harass"];
+function docPct(docs){ return Math.round(DOC_KEYS.filter(k=>docs[k]===true).length/DOC_KEYS.length*100); }
+async function onbSyncProfile(id,data){
+  try{
+    const name=((data["Full legal name"]||"").trim())||(((state.onboardRec||{}).name)||"").trim();
+    if(!name) return;
+    const profs=await DB.profiles();
+    const p=profs.find(x=>((x.name||"").trim().toLowerCase())===name.toLowerCase());
+    const role=((state.onboardRec||{}).role)||"Remote Contractor";
+    if(id==="contact_info"){
+      const emg=[data["Emergency contact name"],data["Relationship to you"],data["Emergency contact phone"]].filter(Boolean).join(", ");
+      const addr=[data["Home address"],data["City and country"]].filter(Boolean).join(", ");
+      const patch={phone:data["Phone"]||null,address:addr||null,emergency_contact:emg||null};
+      if(p) await DB.updateProfile(p.id,patch);
+      else await DB.addProfile(Object.assign({name,status:"Active","class":"1099",role,team:"ph",active:true,docs:{pct:0},training:{},sick:{}},patch));
+    } else {
+      const docs=Object.assign({},(p&&p.docs)||{},{offer:true});
+      docs.pct=docPct(docs);
+      if(p) await DB.updateProfile(p.id,{docs});
+      else await DB.addProfile({name,status:"Active","class":"1099",role,team:"ph",active:true,address:data["Address"]||null,docs,training:{},sick:{}});
+    }
+  }catch(e){ console.error("profile sync",e); }
+}
 
 function renderTraining(){
   const shLink = LANG==="es"
@@ -1386,6 +1411,19 @@ const FORMS={
     {k:"action",label:"Action recommended",label_es:"Acci\u00f3n recomendada",type:"select",options:["Verbal warning","Written warning","Final warning","Termination","HR to decide"]},
     {k:"reporter",label:"Reported by (you)",label_es:"Reportado por (usted)",type:"text",req:true}]}
 };
+FORMS.contact_info={emoji:"\u{1F4C7}",title:"Contact Details & Emergency Contact",title_es:"Datos de contacto y contacto de emergencia",desc:"Your details go to the office and are saved in your employee record.",desc_es:"Sus datos van a la oficina y se guardan en su registro de empleado.",fields:[
+    {k:"name",label:"Full legal name",label_es:"Nombre legal completo",type:"text",req:true},
+    {k:"phone",label:"Phone",label_es:"Tel\u00e9fono",type:"text",req:true},
+    {k:"address",label:"Home address",label_es:"Direcci\u00f3n",type:"textarea",req:true},
+    {k:"citycountry",label:"City and country",label_es:"Ciudad y pa\u00eds",type:"text"},
+    {k:"emg_name",label:"Emergency contact name",label_es:"Nombre del contacto de emergencia",type:"text",req:true},
+    {k:"emg_phone",label:"Emergency contact phone",label_es:"Tel\u00e9fono del contacto de emergencia",type:"text",req:true},
+    {k:"emg_rel",label:"Relationship to you",label_es:"Relaci\u00f3n con usted",type:"text"}]};
+FORMS.ica_sign={emoji:"\u{270D}",title:"Independent Contractor Agreement",title_es:"Acuerdo de contratista independiente",desc:"Sign the Independent Contractor Agreement the office sent you. Typing your full legal name below is your electronic signature, and it is saved in your employee record with a timestamp.",desc_es:"Firme el acuerdo de contratista independiente que la oficina le envi\u00f3. Escribir su nombre legal completo abajo es su firma electr\u00f3nica y se guarda en su registro con fecha y hora.",fields:[
+    {k:"name",label:"Full legal name",label_es:"Nombre legal completo",type:"text",req:true},
+    {k:"address",label:"Address",label_es:"Direcci\u00f3n",type:"textarea",req:true},
+    {k:"sign_date",label:"Date of signing",label_es:"Fecha de firma",type:"date",req:true},
+    {k:"signature",label:"Type your full legal name to sign",label_es:"Escriba su nombre legal completo para firmar",type:"text",req:true}]};
 const HR_FORM_IDS=["emp_info","time_fix","injury","expense","records","pdl"];
 function fLabel(f){ return LANG==="es"&&f.label_es?f.label_es:f.label; }
 function fTitle(d){ return d?(LANG==="es"&&d.title_es?d.title_es:d.title):""; }
@@ -1421,6 +1459,7 @@ async function formSubmit(id){
   const rec={type:id,title:d.title,employee_name:who,submitted_by:who||"Staff",data,status:"pending",created_at:new Date().toISOString()};
   try{
     await DB.addSubmission(rec);
+    if(id==="contact_info"||id==="ica_sign") await onbSyncProfile(id,data);
     if(CONFIG.notifyWebhook){ try{ fetch(CONFIG.notifyWebhook,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(rec)}); }catch(e){} }
     toast(t("Sent to HR"));
     goModule(state.kiosk?"onboard":(id==="incident"?"toolkit":"documents"));
