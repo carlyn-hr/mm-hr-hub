@@ -1685,7 +1685,8 @@ async function accDelete(id){
 }
 
 /* ============================================================ WELCOME & GUIDED TOUR ============================================================ */
-function welcomeMaybe(){ if(state.kiosk)return; try{ if(localStorage.getItem("mm_welcome_done")==="1")return; }catch(e){return;} welcomeShow(); }
+function welKey(){ return "mm_welcome_done_"+(typeof SESSION!=="undefined"&&SESSION&&SESSION.id?SESSION.id:"anon"); }
+function welcomeMaybe(){ if(state.kiosk)return; try{ if(localStorage.getItem(welKey())==="1")return; }catch(e){return;} welcomeShow(); }
 function welcomeShow(){
   if($("#welScrim"))return;
   const d=document.createElement("div"); d.id="welScrim"; d.className="wel-scrim";
@@ -1710,7 +1711,7 @@ function welLang(l){
       <button class="btn btn-ghost" onclick="welClose()">${t("Skip for now")}</button>
     </div>`;
 }
-function welClose(){ try{localStorage.setItem("mm_welcome_done","1");}catch(e){} const d=$("#welScrim"); if(d)d.remove(); }
+function welClose(){ try{localStorage.setItem(welKey(),"1");}catch(e){} const d=$("#welScrim"); if(d)d.remove(); }
 function welStart(){ welClose(); tourStart(); }
 function tourLink(){ return `<div style="margin-top:26px;text-align:center"><button class="linkbtn" onclick="tourStart()" style="display:inline-flex;align-items:center;gap:6px"><i class="ti ti-map-pin"></i> ${t("Take the tour")}</button></div>`; }
 let TOUR={on:false,step:0};
@@ -2125,7 +2126,7 @@ function polHome(v){
     <button class="action-card" data-tour="training" onclick="goModule('training')"><div class="ai">\u{1F393}</div><div><h3>${t('Training')}</h3><p>${t('Required training')}</p></div></button>
     <button class="action-card" data-tour="onboardtile" onclick="goModule('onboard')"><div class="ai">\u{1F680}</div><div><h3>${t('Onboarding')}</h3><p>${t('New hire steps')}</p></div></button>${adminTiles}
   </div>`;
-  v.innerHTML=pageHead(CONFIG.companyName+" HR Hub",t("Welcome"),t("Everything in one place. Pick a section to begin."))+celebInline()+actions+tourLink();
+  v.innerHTML=pageHead(CONFIG.companyName+" HR Hub",t("Welcome")+(typeof SESSION!=="undefined"&&SESSION&&SESSION.name?", "+esc(SESSION.name.split(" ")[0]):""),t("Everything in one place. Pick a section to begin."))+celebInline()+actions+tourLink();
 }
 function celebInline(){
   const anniv=[],bdays=[];
