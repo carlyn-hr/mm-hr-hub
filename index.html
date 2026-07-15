@@ -694,7 +694,7 @@ const uid=()=>"x"+Math.random().toString(36).slice(2,10);
 const clone=o=>JSON.parse(JSON.stringify(o));
 
 const DB={
-  async employees(){ if(LIVE){const{data,error}=await sb.from("employees").select("*").order("name");if(error)throw error;return data.filter(e=>e.active!==false);} return clone(DEMO_EMP).filter(e=>e.active!==false); },
+  async employees(){ if(LIVE){const{data,error}=await sb.from("employees").select("*").order("name");if(error)throw error;INACTIVE_EMP=(data||[]).filter(e=>e.active===false);return data.filter(e=>e.active!==false);} INACTIVE_EMP=clone(DEMO_EMP).filter(e=>e.active===false); return clone(DEMO_EMP).filter(e=>e.active!==false); },
   async profiles(){ if(LIVE){const{data,error}=await sb.from("employee_profiles").select("*").order("name");if(error)throw error;return (data||[]).filter(e=>e.active!==false);} return []; },
   async updateProfile(id,patch){ if(!LIVE)return; const{error}=await sb.from("employee_profiles").update(patch).eq("id",id); if(error)throw error; },
   async addProfile(p){ if(!LIVE)return; const{error}=await sb.from("employee_profiles").insert(p); if(error)throw error; },
@@ -722,6 +722,7 @@ const DB={
   async updateBalances(id,balances){ if(LIVE){const{error}=await sb.from("employees").update({balances}).eq("id",id);if(error)throw error;return;} const e=DEMO_EMP.find(x=>x.id===id); if(e)e.balances=balances; },
   async addEmployee(e){ if(LIVE){const{error}=await sb.from("employees").insert(e);if(error)throw error;return;} DEMO_EMP.push({...e,id:uid()}); },
   async deactivateEmployee(id){ if(LIVE){const{error}=await sb.from("employees").update({active:false}).eq("id",id);if(error)throw error;return;} const e=DEMO_EMP.find(x=>x.id===id); if(e)e.active=false; },
+  async reactivateEmployee(id){ if(LIVE){const{error}=await sb.from("employees").update({active:true}).eq("id",id);if(error)throw error;return;} const e=DEMO_EMP.find(x=>x.id===id); if(e)e.active=true; },
   async openEntry(empId){ if(LIVE){const{data,error}=await sb.from("attendance").select("*").eq("employee_id",empId).is("clock_out",null).limit(1);if(error)throw error;return data[0]||null;} return DEMO_ATT.find(a=>a.employee_id===empId&&!a.clock_out)||null; },
   async clockIn(rec){ if(LIVE){const{error}=await sb.from("attendance").insert(rec);if(error)throw error;return;} DEMO_ATT.push({...rec,id:uid(),hours:null,clock_out:null}); },
   async clockOut(id,clock_out,hours){ if(LIVE){const{error}=await sb.from("attendance").update({clock_out,hours}).eq("id",id);if(error)throw error;return;} const a=DEMO_ATT.find(x=>x.id===id); if(a){a.clock_out=clock_out;a.hours=hours;} },
@@ -733,7 +734,7 @@ let state={module:"policies",isAdmin:false,isSuper:false,query:"",
   pol:{view:"home",cat:null}, meId:null, leaveFilter:"pending",
   clockId:null, atView:"clock", tsRange:null, kiosk:false,
   recruitTab:"pipeline", rec:null, onboardCode:"", onboardRec:null, clockLoc:"field"};
-let EMP=[],REQ=[],ATT=[],POLICIES=[],CATS=[];
+let EMP=[],REQ=[],ATT=[],POLICIES=[],CATS=[],INACTIVE_EMP=[];
 let clockTimer=null;
 
 const $=s=>document.querySelector(s);
@@ -942,8 +943,63 @@ function empPanel(i){
   const fileRows = files.length ? files.map((f,fi)=>`<div class="file-row"><i class="ti ti-file"></i><a href="${esc(f.url)}" target="_blank" rel="noopener" class="file-link">${esc(f.label||f.url)}</a>${state.isAdmin?`<button class="ic-btn" title="Remove" onclick="empFileRemove(${i},${fi})"><i class="ti ti-x"></i></button>`:""}</div>`).join("") : `<div class="kv"><span class="v muted">${t("No documents attached")}</span></div>`;
   const filesBlock = fileRows + (state.isAdmin?`<button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="empFileAdd(${i})"><i class="ti ti-paperclip"></i> ${t("Attach a document")}</button>`:"");
   $("#pBody").innerHTML = sec("Contact",contact)+sec("Employment",employment)+sec("Pay &amp; identity",identity)+sec("Emergency",emerg)+sec("Documents",docBlock)+sec("Files",filesBlock)+sec("Training",training||kvMuted("ti-clipboard","Status","Not tracked yet"))+sec("Sick / PTO",sick)+(notes?sec("Notes",notes):"");
-  $("#pFoot").innerHTML=`<div class="foot-note">Edit details in Supabase or your master spreadsheet, then refresh.</div>`;
+  const sepd=(p.status||"").toLowerCase().indexOf("separat")===0;
+  const empActions = state.isAdmin ? (sepd
+    ? `<button class="btn btn-ghost" style="width:100%" onclick="empReactivate(${i})"><i class="ti ti-user-check"></i> Reactivate this employee</button>`
+    : `<button class="btn btn-ghost" style="width:100%;color:var(--bad)" onclick="empOffboardModal(${i})"><i class="ti ti-user-x"></i> Offboard / mark as separated</button>`) : "";
+  $("#pFoot").innerHTML=empActions+`<div class="foot-note" style="margin-top:${empActions?"8px":"0"}">Edit details in Supabase or your master spreadsheet, then refresh.</div>`;
   $("#panel").classList.add("open");$("#panelScrim").classList.add("open");$("#pBody").scrollTop=0;
+}
+/* Offboarding: labels the Directory profile as Separated and deactivates the matching
+   rows in the employees table, which removes the person from Clock in / out, Time off,
+   and the Timekeeping roster. Attendance history stays in the database for records. */
+function empOffboardModal(i){
+  const p=PROFILES[i]; if(!p)return;
+  const today=new Date().toISOString().slice(0,10);
+  $("#modalBox").innerHTML=`<div class="modal-h">Offboard ${esc(p.name||"")}</div><div class="mform">
+    <div style="font-size:13px;color:var(--sub);line-height:1.5;margin-bottom:4px">This marks the profile as Separated in the Directory and removes them from Clock in / out, Time off, and Timekeeping. Their punch history stays on record.</div>
+    <div class="mrow"><label>Separation date<input id="sepDate" type="date" value="${today}"></label>
+    <label>Reason<select id="sepReason"><option>Resigned</option><option>Terminated</option><option>Laid off</option><option>End of assignment</option><option>Other</option></select></label></div>
+    <label>Note (optional)<input id="sepNote" placeholder="e.g. Gave two weeks notice"></label>
+    <div style="font-size:12px;color:var(--faint);line-height:1.5">California reminder: final pay is due immediately on discharge, within 72 hours if they quit without notice, or on the last day with 72 hours or more of notice.</div>
+    </div><div class="modal-foot"><button class="btn btn-ghost btn-sm" onclick="closeModal()">Cancel</button><button class="btn btn-primary btn-sm" onclick="empOffboard(${i})"><i class="ti ti-user-x"></i> Offboard</button></div>`;
+  openModal();
+}
+async function empOffboard(i){
+  const p=PROFILES[i]; if(!p)return;
+  const norm=s=>(s||"").trim().toLowerCase();
+  const rows=EMP.filter(e=>norm(e.name)===norm(p.name));
+  const ids=rows.map(e=>e.id);
+  if((ATT||[]).some(a=>ids.indexOf(a.employee_id)>=0&&!a.clock_out)){ toast("They are on the clock. Clock them out in Timekeeping first."); return; }
+  const date=(($("#sepDate")||{}).value)||new Date().toISOString().slice(0,10);
+  const reason=(($("#sepReason")||{}).value)||"";
+  const extra=((($("#sepNote")||{}).value)||"").trim();
+  const stampNote=["Separated "+date+(reason?" ("+reason+")":"")+".",extra].filter(Boolean).join(" ");
+  const notes=[p.notes,stampNote].filter(Boolean).join(" ");
+  try{ await DB.updateProfile(p.id,{status:"Separated",notes}); }catch(e){ toast("Could not update the profile"); return; }
+  try{ for(const e of rows) await DB.deactivateEmployee(e.id); }catch(e){ toast("Profile updated, but could not remove them from timekeeping. Try again from their card."); }
+  closeModal(); closePanel(); await refresh();
+  toast(((p.name||"").split(" ")[0]||"Employee")+" offboarded");
+  renderDirectory();
+}
+async function empReactivate(i){
+  const p=PROFILES[i]; if(!p)return;
+  if(!confirm("Reactivate "+(p.name||"this employee")+"? They will reappear in Clock in / out and Time off."))return;
+  const norm=s=>(s||"").trim().toLowerCase();
+  const notes=[p.notes,"Reactivated "+new Date().toISOString().slice(0,10)+"."].filter(Boolean).join(" ");
+  try{ await DB.updateProfile(p.id,{status:"Active",notes}); }catch(e){ toast("Could not update the profile"); return; }
+  try{
+    const rows=(INACTIVE_EMP||[]).filter(e=>norm(e.name)===norm(p.name));
+    if(rows.length){ for(const e of rows) await DB.reactivateEmployee(e.id); }
+    else{
+      const team=(p.team==="ph")?"ph":"ca";
+      const balances={}; ((CONFIG.teams[team]||{}).leaveTypes||[]).forEach(lt=>balances[lt]=0);
+      await DB.addEmployee({name:(p.name||"").trim(),team,email:"",active:true,balances});
+    }
+  }catch(e){}
+  closePanel(); await refresh();
+  toast(((p.name||"").split(" ")[0]||"Employee")+" reactivated");
+  renderDirectory();
 }
 function empFileAdd(i){
   const p=PROFILES[i]; if(!p)return; state._fileIdx=i;
@@ -1133,7 +1189,8 @@ async function onbForward(o){
   if(!norm(o.name)) return false;
   try{
     const profs=await DB.profiles();
-    if(!profs.some(p=>norm(p.name)===norm(o.name))){
+    const existing=profs.find(p=>norm(p.name)===norm(o.name));
+    if(!existing){
       const notes=["Added automatically from onboarding code "+(o.code||"")+" on "+stamp.slice(0,10)+".",
         o.email?"Email: "+o.email+".":"",
         o.start_date?"Start date: "+o.start_date+".":"",
@@ -1141,6 +1198,10 @@ async function onbForward(o){
       await DB.addProfile({name:(o.name||"").trim(),status:"Active",class:cls,role:o.role||(kind==="remote"?"Contractor":"Cleaner"),team,active:true,notes,
         docs:{},training:{},
         sick:cls==="W-2"?{method:"Frontload (40 hrs)",accrued:0,used:0,balance:0}:{}});
+    }
+    else if((existing.status||"").toLowerCase().indexOf("separat")===0){
+      const notes=[existing.notes,"Rehired via onboarding code "+(o.code||"")+" on "+stamp.slice(0,10)+"."].filter(Boolean).join(" ");
+      try{ await DB.updateProfile(existing.id,{status:"Active",notes}); }catch(e){}
     }
     const emps=await DB.employees();
     if(!emps.some(e=>norm(e.name)===norm(o.name))){
@@ -1155,7 +1216,7 @@ async function onbForward(o){
 async function onbSweep(){
   const onbs=(state.rec&&state.rec.onbs)||[]; let added=0;
   for(const o of onbs){ try{ if(await onbForward(o)) added++; }catch(e){} }
-  if(added){ toast(added===1?"1 new hire added to the Directory":added+" new hires added to the Directory"); recPaint(); }
+  if(added){ try{ await refresh(); }catch(e){} toast(added===1?"1 new hire added to the Directory":added+" new hires added to the Directory"); recPaint(); }
 }
 
 function recOnboard(){
@@ -1268,7 +1329,7 @@ async function onbPersist(){
   const r=state.onboardRec; const complete=(r.tasks||[]).every(x=>x.done);
   renderOnboard();
   try{ await DB.updateOnboarding(r.id,{tasks:r.tasks,status:complete?"complete":"in_progress"}); }catch(e){ toast("Saved on this device, will sync when online"); }
-  if(complete){ try{ await onbForward(r); }catch(e){} }
+  if(complete){ try{ if(await onbForward(r)) await refresh(); }catch(e){} }
 }
 function onbFillForm(id){ formOpenPanel(id); }
 function formOpenPanel(id){
@@ -1358,7 +1419,7 @@ async function renderDashboard(){
   const newHires=(EMP||[]).filter(e=>e.hire_date&&(""+e.hire_date).slice(0,4)===yr).length;
   const pcts=(profs||[]).map(p=>(p.docs&&p.docs.pct!=null)?p.docs.pct:0);
   const docAvg=pcts.length?Math.round(pcts.reduce((a,b)=>a+b,0)/pcts.length):0;
-  const sep=(EMP||[]).filter(e=>e.active===false).length;
+  const sep=(INACTIVE_EMP||[]).length;
   const card=(ic,n,l,sub,go)=>`<button class="dash-card"${go?` onclick="${go}"`:' disabled'}><div class="dash-ic"><i class="ti ${ic}"></i></div><div class="dash-n">${n}</div><div class="dash-l">${l}</div>${sub?`<div class="dash-sub">${sub}</div>`:""}</button>`;
   const grid=`<div class="dash-grid">
     ${card("ti-users",active,t("Active headcount"),"","goModule('directory')")}
