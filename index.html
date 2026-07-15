@@ -1030,13 +1030,14 @@ async function renderRecruit(){
   try{ const [apps,posts,onbs]=await Promise.all([DB.applicants(),DB.postings(),DB.onboardings()]); state.rec={apps,posts,onbs}; onbs.forEach(o=>{ if(onbMigrate(o)){ try{ DB.updateOnboarding(o.id,{tasks:o.tasks}); }catch(e){} } }); }
   catch(e){ $("#recBody").innerHTML=`<div class="empty"><i class="ti ti-database-off"></i><p>Recruitment tables aren't set up yet. Run the recruitment seed in Supabase, then refresh this page.</p></div>`; return; }
   recPaint();
+  onbSweep();
 }
 function recTabBar(){
   const tab=(k,l,ic)=>`<button class="rec-tab ${state.recruitTab===k?"active":""}" onclick="setRecTab('${k}')"><i class="ti ${ic}"></i> ${l}</button>`;
   return `<div class="rec-tabs">${tab("pipeline","Pipeline","ti-layout-kanban")}${tab("postings","Job postings","ti-briefcase")}${tab("onboard","Onboarding","ti-clipboard-check")}</div>`;
 }
 function setRecTab(t){ state.recruitTab=t; const bar=$(".rec-tabs"); if(bar) bar.outerHTML=recTabBar(); recPaint(); }
-async function reloadRec(){ try{ const [apps,posts,onbs]=await Promise.all([DB.applicants(),DB.postings(),DB.onboardings()]); state.rec={apps,posts,onbs}; onbs.forEach(o=>{ if(onbMigrate(o)){ try{ DB.updateOnboarding(o.id,{tasks:o.tasks}); }catch(e){} } }); }catch(e){} recPaint(); }
+async function reloadRec(){ try{ const [apps,posts,onbs]=await Promise.all([DB.applicants(),DB.postings(),DB.onboardings()]); state.rec={apps,posts,onbs}; onbs.forEach(o=>{ if(onbMigrate(o)){ try{ DB.updateOnboarding(o.id,{tasks:o.tasks}); }catch(e){} } }); }catch(e){} recPaint(); onbSweep(); }
 function recPaint(){ const b=$("#recBody"); if(!b)return; b.innerHTML = state.recruitTab==="postings"?recPostings():(state.recruitTab==="onboard"?recOnboard():recPipeline()); }
 
 function recPipeline(){
@@ -1120,12 +1121,49 @@ async function postToggle(id,status){ try{ await DB.updatePosting(id,{status}); 
 async function postDelete(id){ if(!confirm("Delete this posting?"))return; try{ await DB.deletePosting(id); }catch(e){ toast("Could not delete"); } await reloadRec(); toast("Posting deleted"); }
 function postCopy(id){ const p=(state.rec.posts||[]).find(x=>x.id===id); if(!p)return; const txt=[p.title,[p.location,p.employment_type,p.pay_range].filter(Boolean).join(" · "),"",p.description||""].join("\n"); copyText(txt); toast("Posting text copied"); }
 
+/* When an onboarding checklist is fully done, forward the new hire to the Directory
+   (employee_profiles) and the leave and clock roster (employees). Guarded by the
+   forwarded_at stamp and a name check, so it never creates duplicates. */
+async function onbForward(o){
+  if(!LIVE||!o||o.forwarded_at) return false;
+  const tasks=o.tasks||[]; if(!tasks.length||!tasks.every(x=>x.done)) return false;
+  const kind=onbKind(tasks); const team=kind==="remote"?"ph":"ca"; const cls=kind==="remote"?"1099":"W-2";
+  const stamp=new Date().toISOString();
+  const norm=s=>(s||"").trim().toLowerCase();
+  if(!norm(o.name)) return false;
+  try{
+    const profs=await DB.profiles();
+    if(!profs.some(p=>norm(p.name)===norm(o.name))){
+      const notes=["Added automatically from onboarding code "+(o.code||"")+" on "+stamp.slice(0,10)+".",
+        o.email?"Email: "+o.email+".":"",
+        o.start_date?"Start date: "+o.start_date+".":"",
+        cls==="W-2"?"Sick leave: 40 hours frontload on the 90th day of employment.":""].filter(Boolean).join(" ");
+      await DB.addProfile({name:(o.name||"").trim(),status:"Active",class:cls,role:o.role||(kind==="remote"?"Contractor":"Cleaner"),team,active:true,notes,
+        docs:{},training:{},
+        sick:cls==="W-2"?{method:"Frontload (40 hrs)",accrued:0,used:0,balance:0}:{}});
+    }
+    const emps=await DB.employees();
+    if(!emps.some(e=>norm(e.name)===norm(o.name))){
+      const balances={}; ((CONFIG.teams[team]||{}).leaveTypes||[]).forEach(lt=>balances[lt]=0);
+      await DB.addEmployee({name:(o.name||"").trim(),team,email:o.email||"",active:true,balances});
+    }
+    try{ await DB.updateOnboarding(o.id,{forwarded_at:stamp}); }catch(e){}
+    o.forwarded_at=stamp;
+    return true;
+  }catch(e){ return false; }
+}
+async function onbSweep(){
+  const onbs=(state.rec&&state.rec.onbs)||[]; let added=0;
+  for(const o of onbs){ try{ if(await onbForward(o)) added++; }catch(e){} }
+  if(added){ toast(added===1?"1 new hire added to the Directory":added+" new hires added to the Directory"); recPaint(); }
+}
+
 function recOnboard(){
   const onbs=state.rec.onbs||[];
   let html=`<div class="rec-actionbar"><button class="btn btn-primary btn-sm" onclick="onbForm()"><i class="ti ti-plus"></i> New onboarding</button><span class="rec-count">${onbs.length} total</span></div>`;
   if(!onbs.length) html+=`<div class="empty"><i class="ti ti-clipboard-off"></i><p>No onboarding yet. Hire a candidate from the pipeline, or add one here.</p></div>`;
   html+=onbs.map((o,i)=>{ const tasks=o.tasks||[]; const done=tasks.filter(t=>t.done).length; const pct=tasks.length?Math.round(done/tasks.length*100):0; const complete=o.status==="complete"||pct===100;
-    return `<div class="card onb-card" style="cursor:pointer" onclick="onbPanel(${i})"><div style="flex:1;min-width:0"><div class="post-title">${esc(o.name||"New hire")}</div><div class="post-meta"><span class="team-chip ${onbKind(o.tasks)==="remote"?"ph":"ca"}">${onbKind(o.tasks)==="remote"?"Remote":"US crew"}</span> ${esc(o.role||"Crew")}${o.code?` · code <b>${esc(o.code)}</b>`:""}</div><div class="doc-bar" style="margin-top:9px"><div class="doc-bar-fill" style="width:${pct}%"></div></div><div class="doc-pct">${done} of ${tasks.length} done · ${pct}%${complete?" · complete":""}</div></div>
+    return `<div class="card onb-card" style="cursor:pointer" onclick="onbPanel(${i})"><div style="flex:1;min-width:0"><div class="post-title">${esc(o.name||"New hire")}</div><div class="post-meta"><span class="team-chip ${onbKind(o.tasks)==="remote"?"ph":"ca"}">${onbKind(o.tasks)==="remote"?"Remote":"US crew"}</span> ${esc(o.role||"Crew")}${o.code?` · code <b>${esc(o.code)}</b>`:""}</div><div class="doc-bar" style="margin-top:9px"><div class="doc-bar-fill" style="width:${pct}%"></div></div><div class="doc-pct">${done} of ${tasks.length} done · ${pct}%${complete?" · complete":""}${o.forwarded_at?" · in Directory":""}</div></div>
       <div class="post-side"><button class="ic-btn" title="Copy the new-hire link" onclick="event.stopPropagation();onbCopy('${o.code}')"><i class="ti ti-link"></i></button><i class="ti ti-chevron-right" style="color:var(--faint)"></i></div></div>`; }).join("");
   return html;
 }
@@ -1230,6 +1268,7 @@ async function onbPersist(){
   const r=state.onboardRec; const complete=(r.tasks||[]).every(x=>x.done);
   renderOnboard();
   try{ await DB.updateOnboarding(r.id,{tasks:r.tasks,status:complete?"complete":"in_progress"}); }catch(e){ toast("Saved on this device, will sync when online"); }
+  if(complete){ try{ await onbForward(r); }catch(e){} }
 }
 function onbFillForm(id){ formOpenPanel(id); }
 function formOpenPanel(id){
