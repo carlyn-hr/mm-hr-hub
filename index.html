@@ -216,6 +216,35 @@ textarea.f-input{resize:vertical;min-height:70px}
 .muted-row{font-size:12px;color:var(--faint);display:flex;align-items:center;gap:5px}.muted-row i{font-size:14px}
 
 
+
+/* ===== SIGN IN & ACCOUNTS ===== */
+body.authgate .sidebar,body.authgate .topbar{display:none}
+.auth-wrap{max-width:400px;margin:7vh auto 0;padding:0 4px}
+.auth-hero{text-align:center;margin-bottom:22px}
+.auth-logo img{width:72px;height:72px;object-fit:contain}
+.auth-title{font-size:24px;margin:12px 0 6px;letter-spacing:-.3px}
+.auth-sub{font-size:14px;color:var(--sub);line-height:1.5}
+.auth-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:0 1px 2px rgba(20,25,40,.04)}
+.auth-input{width:100%;border:1px solid var(--border-strong);border-radius:11px;padding:13px 14px;font-size:16px;margin-bottom:12px;box-sizing:border-box;background:var(--surface);color:var(--text)}
+.auth-pin{letter-spacing:8px;text-align:center;font-size:22px;font-weight:700}
+.auth-err{font-size:13px;color:var(--bad);margin:-4px 0 10px}
+.auth-name{font-size:15.5px;font-weight:700;text-align:center;margin-bottom:10px}
+.auth-hint{font-size:12.5px;color:var(--faint);line-height:1.55;margin-top:14px;text-align:center}
+.auth-bio{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:10px}
+.acc-row{display:flex;align-items:center;gap:11px;padding:13px 15px;border:1px solid var(--border);border-radius:12px;margin-bottom:9px;background:var(--surface)}
+.acc-main{flex:1;min-width:0}
+.acc-name{font-size:14px;font-weight:700}
+.acc-sub{font-size:12px;color:var(--sub);margin-top:2px;word-break:break-all}
+.acc-chip{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:99px;letter-spacing:.3px;flex-shrink:0}
+.acc-chip.active{background:#e3f4ec;color:var(--ok)}
+.acc-chip.pending{background:#fdf3dd;color:#9a6b0f}
+.acc-chip.disabled{background:#fdecec;color:var(--bad)}
+.acc-code{font-family:ui-monospace,monospace;font-weight:700;background:var(--bg);padding:2px 7px;border-radius:6px}
+.acc-actions{display:flex;gap:6px;flex-shrink:0}
+.acc-actions button{background:none;border:1px solid var(--border);border-radius:9px;padding:6px 8px;cursor:pointer;color:var(--sub);font-size:15px;line-height:1}
+.acc-actions button:hover{border-color:var(--accent);color:var(--accent)}
+.acc-bio{color:var(--ok);font-size:15px;flex-shrink:0}
+
 /* ===== WELCOME & TOUR ===== */
 .wel-scrim{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:400;display:flex;align-items:center;justify-content:center;padding:20px}
 .wel-card{background:var(--surface);border-radius:20px;padding:30px 26px;max-width:380px;width:100%;text-align:center;box-shadow:0 24px 64px rgba(15,23,42,.35)}
@@ -569,6 +598,7 @@ textarea.f-input{resize:vertical;min-height:70px}
   <div class="side-foot">
     <span class="src" id="src"><span class="d"></span><span id="srcText">Demo data</span></span>
     <button id="adminToggle" onclick="toggleAdmin()"><i class="ti ti-lock"></i> <span id="adminToggleLabel">Admin sign in</span></button>
+    <button id="userSignOut" onclick="signOutUser()" style="display:none"><i class="ti ti-logout"></i> <span id="userSignOutLabel">Sign out</span></button>
   </div>
 </aside>
 
@@ -769,7 +799,13 @@ const DB={
   async openEntry(empId){ if(LIVE){const{data,error}=await sb.from("attendance").select("*").eq("employee_id",empId).is("clock_out",null).limit(1);if(error)throw error;return data[0]||null;} return DEMO_ATT.find(a=>a.employee_id===empId&&!a.clock_out)||null; },
   async clockIn(rec){ if(LIVE){const{error}=await sb.from("attendance").insert(rec);if(error)throw error;return;} DEMO_ATT.push({...rec,id:uid(),hours:null,clock_out:null}); },
   async clockOut(id,clock_out,hours){ if(LIVE){const{error}=await sb.from("attendance").update({clock_out,hours}).eq("id",id);if(error)throw error;return;} const a=DEMO_ATT.find(x=>x.id===id); if(a){a.clock_out=clock_out;a.hours=hours;} },
-  async updateEntry(id,patch){ if(LIVE){const{error}=await sb.from("attendance").update(patch).eq("id",id);if(error)throw error;return;} const a=DEMO_ATT.find(x=>x.id===id); if(a)Object.assign(a,patch); }
+  async updateEntry(id,patch){ if(LIVE){const{error}=await sb.from("attendance").update(patch).eq("id",id);if(error)throw error;return;} const a=DEMO_ATT.find(x=>x.id===id); if(a)Object.assign(a,patch); },
+  async accounts(){ if(!LIVE)return[]; const{data,error}=await sb.from("hub_accounts").select("*").order("name"); if(error)throw error; return data||[]; },
+  async accountByLogin(q){ if(!LIVE)return null; const isEmail=q.indexOf("@")>=0; const col=isEmail?"email":"setup_code"; const val=isEmail?q.toLowerCase():q.toUpperCase(); const{data,error}=await sb.from("hub_accounts").select("*").eq(col,val).limit(1); if(error)throw error; return (data&&data[0])||null; },
+  async accountById(id){ if(!LIVE)return null; const{data,error}=await sb.from("hub_accounts").select("*").eq("id",id).limit(1); if(error)throw error; return (data&&data[0])||null; },
+  async addAccount(o){ if(!LIVE)return null; const{data,error}=await sb.from("hub_accounts").insert(o).select(); if(error)throw error; return data&&data[0]; },
+  async updateAccount(id,patch){ if(!LIVE)return; const{error}=await sb.from("hub_accounts").update(patch).eq("id",id); if(error)throw error; },
+  async deleteAccount(id){ if(!LIVE)return; const{error}=await sb.from("hub_accounts").delete().eq("id",id); if(error)throw error; }
 };
 
 /* ============================================================ STATE ============================================================ */
@@ -819,7 +855,7 @@ async function refresh(){
   $("#pendDot").style.display=p?"inline-flex":"none"; $("#pendDot").textContent=p;
 }
 let LANG="en"; try{ const _l=localStorage.getItem("mm_lang"); if(_l==="es"||_l==="en")LANG=_l; }catch(e){}
-const ES={"Want a quick tour?":"\u00bfQuiere un recorrido r\u00e1pido?","We'll walk you through the Hub step by step, pointing at each part of the screen as we go.":"Le mostraremos el Hub paso a paso, se\u00f1alando cada parte de la pantalla en el camino.","Start the tour":"Iniciar el recorrido","Skip for now":"Omitir por ahora","Take the tour":"Hacer el recorrido","All company policies live here. Tap any policy to read it in English or Spanish.":"Todas las pol\u00edticas de la empresa est\u00e1n aqu\u00ed. Toque cualquiera para leerla en ingl\u00e9s o espa\u00f1ol.","Start your shift here, log your rest and meal breaks, and clock out at the end of the day.":"Inicie su turno aqu\u00ed, registre sus descansos y su comida, y marque su salida al final del d\u00eda.","Request paid sick leave and check your balance.":"Solicite licencia por enfermedad pagada y consulte su saldo.","Fill out HR forms right on your phone. They go straight to HR, no printing.":"Llene los formularios de RRHH desde su tel\u00e9fono. Llegan directo a RRHH, sin imprimir.","See the required training and what each one covers.":"Vea la capacitaci\u00f3n requerida y qu\u00e9 cubre cada una.","New hires enter the private code from the office here.":"Los nuevos ingresos escriben aqu\u00ed el c\u00f3digo privado que les dio la oficina.","Language":"Idioma","Switch the whole Hub between English and Spanish any time.":"Cambie todo el Hub entre ingl\u00e9s y espa\u00f1ol cuando quiera.","Tap Home whenever you want to come back to this screen. That's it, you're ready.":"Toque Inicio cuando quiera volver a esta pantalla. Eso es todo, ya est\u00e1 listo.","Back":"Atr\u00e1s","Next":"Siguiente","Done":"Listo","Skip tour":"Omitir recorrido","of":"de","Read and acknowledge each policy in the Employee Handbook":"Lea y acuse recibo de cada pol\u00edtica del Manual del empleado","I have read and I acknowledge the Employee Handbook and every policy in it":"He le\u00eddo y acuso recibo del Manual del empleado y de cada una de sus pol\u00edticas","Open the full handbook (PDF)":"Abrir el manual completo (PDF)","policies acknowledged":"pol\u00edticas con acuse de recibo","I have read this policy":"He le\u00eddo esta pol\u00edtica","Acknowledged":"Acuse de recibo","All policies acknowledged. Now sign the handbook acknowledgment below.":"Todas las pol\u00edticas tienen acuse de recibo. Ahora firme el acuse del manual m\u00e1s abajo.","Open each policy below and acknowledge it first":"Primero abra cada pol\u00edtica abajo y acuse recibo","First acknowledge every policy in the review above":"Primero acuse recibo de cada pol\u00edtica en la revisi\u00f3n de arriba","Your paperwork":"Sus documentos","Read and acknowledge":"Leer y acusar recibo","Your first day":"Su primer d\u00eda",
+const ES={"Sign in to open the Hub.":"Inicie sesi\u00f3n para abrir el Hub.","Email or setup code":"Correo o c\u00f3digo de configuraci\u00f3n","Continue":"Continuar","First time here? Enter the email the office has on file, or the setup code they gave you.":"\u00bfPrimera vez aqu\u00ed? Escriba el correo que la oficina tiene en archivo, o el c\u00f3digo de configuraci\u00f3n que le dieron.","No email and no code? Ask the office to create your account.":"\u00bfSin correo y sin c\u00f3digo? Pida a la oficina que cree su cuenta.","Unlock as":"Desbloquear como","Welcome back.":"Bienvenido de nuevo.","Unlock":"Desbloquear","Use fingerprint or face":"Usar huella o rostro","Not you? Go back":"\u00bfNo es usted? Volver","Forgot your passcode? Ask the office to reset it and give you a new setup code.":"\u00bfOlvid\u00f3 su c\u00f3digo? Pida a la oficina que lo restablezca y le d\u00e9 un nuevo c\u00f3digo de configuraci\u00f3n.","Let's set up your account.":"Configuremos su cuenta.","Create a passcode of 4 to 8 digits. You'll use it to open the Hub on any device.":"Cree un c\u00f3digo de 4 a 8 d\u00edgitos. Lo usar\u00e1 para abrir el Hub en cualquier dispositivo.","New passcode":"Nuevo c\u00f3digo","Repeat it":"Rep\u00edtalo","Save passcode":"Guardar c\u00f3digo","One more thing.":"Una cosa m\u00e1s.","Add fingerprint or face unlock on this phone? Next time you can open the Hub without typing your passcode.":"\u00bfAgregar desbloqueo con huella o rostro en este tel\u00e9fono? La pr\u00f3xima vez podr\u00e1 abrir el Hub sin escribir su c\u00f3digo.","Enable it":"Activarlo","Not now":"Ahora no","Could not check right now. Try again.":"No se pudo verificar ahora. Intente de nuevo.","No account found for that. Check it, or ask the office.":"No se encontr\u00f3 una cuenta con eso. Rev\u00edselo o pregunte a la oficina.","This account is disabled. Talk to the office.":"Esta cuenta est\u00e1 deshabilitada. Hable con la oficina.","Enter your 4 to 8 digit passcode.":"Escriba su c\u00f3digo de 4 a 8 d\u00edgitos.","Wrong passcode. Try again.":"C\u00f3digo incorrecto. Intente de nuevo.","Use 4 to 8 digits.":"Use de 4 a 8 d\u00edgitos.","The two passcodes don't match.":"Los dos c\u00f3digos no coinciden.","Could not save. Try again.":"No se pudo guardar. Intente de nuevo.","Fingerprint / face unlock is on for this phone":"El desbloqueo con huella o rostro qued\u00f3 activo en este tel\u00e9fono","Could not enable it on this device":"No se pudo activar en este dispositivo","Fingerprint / face unlock did not work. Use your passcode.":"El desbloqueo con huella o rostro no funcion\u00f3. Use su c\u00f3digo.","Sign out":"Cerrar sesi\u00f3n","Accounts":"Cuentas","Hub logins and access":"Accesos e inicios de sesi\u00f3n","Sign in as admin to manage accounts.":"Inicia sesi\u00f3n como administrador para gestionar las cuentas.","The accounts table isn't set up yet. Run the hub_accounts SQL in Supabase, then refresh.":"La tabla de cuentas a\u00fan no est\u00e1 configurada. Ejecute el SQL de hub_accounts en Supabase y actualice.","Who can sign in to the Hub. Create an account, hand over the setup code, and the person picks their own passcode on first sign-in.":"Qui\u00e9n puede iniciar sesi\u00f3n en el Hub. Cree una cuenta, entregue el c\u00f3digo de configuraci\u00f3n y la persona elige su propio c\u00f3digo la primera vez.","Create an account":"Crear una cuenta","Create for everyone missing one":"Crear para todos los que falten","No accounts yet. Create the first one.":"A\u00fan no hay cuentas. Cree la primera.","Setup code":"C\u00f3digo de configuraci\u00f3n","No email on file":"Sin correo en archivo","Pending setup":"Configuraci\u00f3n pendiente","Disabled":"Deshabilitada","Reset passcode":"Restablecer c\u00f3digo","Enable":"Habilitar","Disable":"Deshabilitar","Delete":"Eliminar","Pick from the directory":"Elegir del directorio","Someone else (type below)":"Otra persona (escriba abajo)","Or type the name":"O escriba el nombre","Full name":"Nombre completo","Email (optional)":"Correo (opcional)","Create":"Crear","Cancel":"Cancelar","Could not create. Is that email already used?":"No se pudo crear. \u00bfEse correo ya est\u00e1 en uso?","Account created":"Cuenta creada","can now sign in for the first time":"ya puede iniciar sesi\u00f3n por primera vez","with their email":"con su correo","or":"o","with this one-time setup code:":"con este c\u00f3digo de configuraci\u00f3n de un solo uso:","They'll pick their own passcode on first sign-in, and the code stops working after that.":"Elegir\u00e1 su propio c\u00f3digo la primera vez que inicie sesi\u00f3n, y este c\u00f3digo dejar\u00e1 de funcionar despu\u00e9s.","Copy code":"Copiar c\u00f3digo","Copied":"Copiado","Create accounts with setup codes for":"\u00bfCrear cuentas con c\u00f3digos de configuraci\u00f3n para","people?":"personas?","Everyone in the directory already has an account":"Todos en el directorio ya tienen una cuenta","accounts created, code list downloaded":"cuentas creadas, lista de c\u00f3digos descargada","Reset this passcode? They'll get a new setup code and pick a new passcode.":"\u00bfRestablecer este c\u00f3digo? Recibir\u00e1 un nuevo c\u00f3digo de configuraci\u00f3n y elegir\u00e1 uno nuevo.","Could not reset":"No se pudo restablecer","Could not update":"No se pudo actualizar","Could not delete":"No se pudo eliminar","Delete this account permanently?":"\u00bfEliminar esta cuenta permanentemente?","Want a quick tour?":"\u00bfQuiere un recorrido r\u00e1pido?","We'll walk you through the Hub step by step, pointing at each part of the screen as we go.":"Le mostraremos el Hub paso a paso, se\u00f1alando cada parte de la pantalla en el camino.","Start the tour":"Iniciar el recorrido","Skip for now":"Omitir por ahora","Take the tour":"Hacer el recorrido","All company policies live here. Tap any policy to read it in English or Spanish.":"Todas las pol\u00edticas de la empresa est\u00e1n aqu\u00ed. Toque cualquiera para leerla en ingl\u00e9s o espa\u00f1ol.","Start your shift here, log your rest and meal breaks, and clock out at the end of the day.":"Inicie su turno aqu\u00ed, registre sus descansos y su comida, y marque su salida al final del d\u00eda.","Request paid sick leave and check your balance.":"Solicite licencia por enfermedad pagada y consulte su saldo.","Fill out HR forms right on your phone. They go straight to HR, no printing.":"Llene los formularios de RRHH desde su tel\u00e9fono. Llegan directo a RRHH, sin imprimir.","See the required training and what each one covers.":"Vea la capacitaci\u00f3n requerida y qu\u00e9 cubre cada una.","New hires enter the private code from the office here.":"Los nuevos ingresos escriben aqu\u00ed el c\u00f3digo privado que les dio la oficina.","Language":"Idioma","Switch the whole Hub between English and Spanish any time.":"Cambie todo el Hub entre ingl\u00e9s y espa\u00f1ol cuando quiera.","Tap Home whenever you want to come back to this screen. That's it, you're ready.":"Toque Inicio cuando quiera volver a esta pantalla. Eso es todo, ya est\u00e1 listo.","Back":"Atr\u00e1s","Next":"Siguiente","Done":"Listo","Skip tour":"Omitir recorrido","of":"de","Read and acknowledge each policy in the Employee Handbook":"Lea y acuse recibo de cada pol\u00edtica del Manual del empleado","I have read and I acknowledge the Employee Handbook and every policy in it":"He le\u00eddo y acuso recibo del Manual del empleado y de cada una de sus pol\u00edticas","Open the full handbook (PDF)":"Abrir el manual completo (PDF)","policies acknowledged":"pol\u00edticas con acuse de recibo","I have read this policy":"He le\u00eddo esta pol\u00edtica","Acknowledged":"Acuse de recibo","All policies acknowledged. Now sign the handbook acknowledgment below.":"Todas las pol\u00edticas tienen acuse de recibo. Ahora firme el acuse del manual m\u00e1s abajo.","Open each policy below and acknowledge it first":"Primero abra cada pol\u00edtica abajo y acuse recibo","First acknowledge every policy in the review above":"Primero acuse recibo de cada pol\u00edtica en la revisi\u00f3n de arriba","Your paperwork":"Sus documentos","Read and acknowledge":"Leer y acusar recibo","Your first day":"Su primer d\u00eda",
 "Policies":"Pol\u00edticas","HR Forms":"Formularios","Clock in / out":"Entrada / salida","Time off":"Tiempo libre","Timekeeping":"Control de horas",
 "Quick actions":"Acciones r\u00e1pidas","Start or end your shift":"Inicia o termina tu turno","Request or track leave":"Solicita o consulta tu tiempo libre","Handbook and forms":"Manual y formularios","Read your policies":"Lee tus pol\u00edticas","Hours and timesheets":"Horas y hojas de tiempo","Employee records":"Registros de empleados","Hiring and onboarding":"Contrataci\u00f3n e incorporaci\u00f3n","Timekeeping":"Registro de tiempo","Directory":"Directorio","Recruitment":"Reclutamiento","Library":"Biblioteca","Tap any policy to read the full text.":"Toca cualquier pol\u00edtica para leer el texto completo.","Welcome":"Bienvenido","Everything in one place. Pick a section to begin.":"Todo en un solo lugar. Elige una secci\u00f3n para comenzar.","Coming up":"Pr\u00f3ximamente","None in the next 60 days.":"Nada en los pr\u00f3ximos 60 d\u00edas.","Pick a category to see its policies.":"Elige una categor\u00eda para ver sus pol\u00edticas.","Training":"Capacitaci\u00f3n","Required training":"Capacitaci\u00f3n requerida","New hire steps":"Pasos de nuevo ingreso","Onboarding":"Incorporaci\u00f3n","The training everyone completes. The office schedules these and tracks your completion.":"La capacitaci\u00f3n que todos completan. La oficina las programa y registra su cumplimiento.","Sexual harassment prevention":"Prevenci\u00f3n del acoso sexual","In-person prevention training every two years through a state Qualified Organization (Labor Code 1429.5), plus the general training required for employers with five or more employees.":"Capacitaci\u00f3n presencial de prevenci\u00f3n cada dos a\u00f1os a trav\u00e9s de una organizaci\u00f3n calificada por el estado (C\u00f3digo Laboral 1429.5), adem\u00e1s de la capacitaci\u00f3n general requerida para empleadores con cinco o m\u00e1s empleados.","Open policy":"Abrir pol\u00edtica","IIPP and safety orientation":"IIPP y orientaci\u00f3n de seguridad","Our Cal/OSHA Injury and Illness Prevention Program, safe work practices, and what to do if you are hurt on the job.":"Nuestro Programa de Prevenci\u00f3n de Lesiones y Enfermedades de Cal/OSHA, pr\u00e1cticas de trabajo seguras y qu\u00e9 hacer si se lesiona en el trabajo.","Chemical and SDS safety":"Seguridad qu\u00edmica y SDS","Safe handling and dilution of cleaning chemicals, never mixing products, using your protective equipment, and reading the Safety Data Sheet.":"Manejo y diluci\u00f3n seguros de qu\u00edmicos de limpieza, nunca mezclar productos, usar su equipo de protecci\u00f3n y leer la Hoja de Datos de Seguridad.","Onsite / Field":"En sitio / Campo","Remote":"Remoto","No remote team set up yet.":"A\u00fan no hay equipo remoto configurado.","No onsite crew set up yet.":"A\u00fan no hay cuadrilla en sitio configurada.","Remote clock-in. No location is recorded.":"Marca remota. No se registra ubicaci\u00f3n.","since":"desde","Site or location (optional)":"Sitio o ubicaci\u00f3n (opcional)","HR Dashboard":"Panel de RRHH","Headcount and pending actions":"Personal y acciones pendientes","Manager Toolkit":"Kit del supervisor","Tools and how-tos":"Herramientas y gu\u00edas","SOP Library":"Biblioteca de procedimientos","Guides for the Hub":"Gu\u00edas del Hub","Work anniversaries":"Aniversarios laborales","Upcoming milestones":"Pr\u00f3ximos hitos","Birthdays":"Cumplea\u00f1os","Upcoming birthdays":"Pr\u00f3ximos cumplea\u00f1os","Coming up in the next 60 days.":"Pr\u00f3ximos en los siguientes 60 d\u00edas.","No birthdays in the next 60 days.":"No hay cumplea\u00f1os en los pr\u00f3ximos 60 d\u00edas.","No anniversaries in the next 60 days.":"No hay aniversarios en los pr\u00f3ximos 60 d\u00edas.","Today":"Hoy","Tomorrow":"Ma\u00f1ana","in":"en","year":"a\u00f1o","years":"a\u00f1os","Admin":"Administraci\u00f3n","Loading...":"Cargando...","Sign in as admin to view the dashboard.":"Inicia sesi\u00f3n como administrador para ver el panel.","Active headcount":"Personal activo","On the clock now":"En turno ahora","Pending time off":"Tiempo libre pendiente","Onboarding in progress":"Incorporaci\u00f3n en curso","New hires this year":"Nuevas contrataciones este a\u00f1o","Documents on file":"Documentos en archivo","crew average":"promedio del equipo","Separations this year":"Bajas este a\u00f1o","recorded in the Hub":"registradas en el Hub","A snapshot of the team and what needs your attention.":"Un resumen del equipo y lo que requiere tu atenci\u00f3n.","Pending actions":"Acciones pendientes","Nothing needs your attention right now.":"Nada requiere tu atenci\u00f3n ahora.","Sign in as admin to open the toolkit.":"Inicia sesi\u00f3n como administrador para abrir el kit.","Quick links and short playbooks for the day to day.":"Enlaces r\u00e1pidos y gu\u00edas breves para el d\u00eda a d\u00eda.","Quick links":"Enlaces r\u00e1pidos","Playbooks":"Gu\u00edas","Review time off":"Revisar tiempo libre","Post a job / hire":"Publicar empleo / contratar","HR forms":"Formularios de RRHH","Sign in as admin to open the SOP Library.":"Inicia sesi\u00f3n como administrador para abrir la biblioteca.","How to run the Hub, for admin, super admin, and staff.":"C\u00f3mo usar el Hub, para administrador, super administrador y personal.","In the field":"En el campo","No documents attached":"Sin documentos adjuntos","Attach a document":"Adjuntar un documento","Label":"Etiqueta","Google Drive link":"Enlace de Google Drive","Upload the file to Drive, share it with the office, then paste the link here.":"Sube el archivo a Drive, comp\u00e1rtelo con la oficina y pega el enlace aqu\u00ed.","Attach":"Adjuntar","Fill and submit":"Llenar y enviar","Read and download":"Leer y descargar","Fill a form and it goes straight to HR. No printing, no links.":"Llene un formulario y llega directo a RRHH. Sin imprimir ni enlaces.","Submit to HR":"Enviar a RRHH","Sent to HR":"Enviado a RRHH","Could not send":"No se pudo enviar","Please fill the required fields":"Complete los campos obligatorios","This goes straight to HR. Do not include bank account or Social Security numbers here.":"Esto llega directo a RRHH. No incluya n\u00fameros de cuenta bancaria ni de Seguro Social aqu\u00ed.","No link set":"Sin enlace","HR Inbox":"Bandeja de RRHH","Forms sent to HR":"Formularios enviados a RRHH","Sign in as admin to open the HR Inbox.":"Inicia sesi\u00f3n como administrador para abrir la bandeja.","Forms and notices your team has sent in.":"Formularios y avisos que tu equipo ha enviado.","Needs attention":"Requiere atenci\u00f3n","Handled":"Atendido","New":"Nuevo","Reopen":"Reabrir","Mark handled":"Marcar como atendido","Marked handled":"Marcado como atendido","Reopened":"Reabierto","No form submissions yet.":"A\u00fan no hay formularios enviados.","No details":"Sin detalles","No details ":"Sin detalles","From":"De","Details":"Detalles","Send to HR":"Enviar a RRHH","Send HR an incident report":"Enviar a RRHH un reporte de incidente","A disciplinary notice or incident record that goes straight to HR.":"Un aviso disciplinario o registro de incidente que llega directo a RRHH.","Forms to review":"Formularios por revisar","form waiting in the HR Inbox":"formulario esperando en la bandeja de RRHH","forms waiting in the HR Inbox":"formularios esperando en la bandeja de RRHH","Employee Information Update":"Actualizaci\u00f3n de datos del empleado","Time Correction / Missed Punch":"Correcci\u00f3n de tiempo","Injury / Incident Report":"Reporte de lesi\u00f3n o incidente","Expense & Mileage Reimbursement":"Reembolso de gastos y millas","Personnel Records Request":"Solicitud de registros","Pregnancy & Maternity Leave Request":"Solicitud de licencia por maternidad","Incident / Disciplinary Notice":"Aviso de incidente / disciplinario","Rest break":"Descanso","Meal break":"Comida","10 min, paid":"10 min, pagado","30 min, unpaid":"30 min, no pagado","On meal break":"En descanso de comida","On rest break":"En descanso","End break":"Terminar descanso","Already on break":"Ya est\u00e1 en descanso","Meal break started":"Descanso de comida iniciado","Rest break started":"Descanso iniciado","Break ended":"Descanso terminado",
 "Home":"Inicio","Clock in, request time off, and read your policies and forms.":"Marca tu entrada, solicita tiempo libre y consulta tus pol\u00edticas y formularios.","Browse by category":"Explorar por categor\u00eda","Required to read":"Lectura obligatoria","Policies count":"Pol\u00edticas",
@@ -855,7 +891,11 @@ async function boot(){
   const _h=location.hash||"";
   if(_h==="#clock"){ enterKiosk(); }
   else if(_h.indexOf("#onboard")===0){ const _c=(_h.split("=")[1]||"").toUpperCase(); startOnboard(_c); }
-  else { render(); welcomeMaybe(); }
+  else {
+    SESSION=sessLoad();
+    if(LIVE && !SESSION && await authPing()){ authShow(); }
+    else { applyUserFoot(); render(); welcomeMaybe(); }
+  }
 }
 function startOnboard(code){ state.kiosk=true; document.body.classList.add("kiosk"); state.module="onboard"; state.onboardCode=code||""; state.onboardRec=null; render(); }
 function enterKiosk(){
@@ -918,6 +958,7 @@ function render(){
   else if(state.module==="toolkit") renderToolkit();
   else if(state.module==="sop") renderSOP();
   else if(state.module==="hrinbox") renderInbox();
+  else if(state.module==="accounts") renderAccounts();
   else if(state.module==="anniv") renderCelebrations("anniv");
   else if(state.module==="bday") renderCelebrations("bday");
   else if(state.module==="onboard") renderOnboard();
@@ -1415,6 +1456,234 @@ async function onbSyncProfile(id,data){
   }catch(e){ console.error("profile sync",e); }
 }
 
+/* ============================================================ SIGN IN, SESSIONS & BIOMETRICS ============================================================ */
+let SESSION=null, AUTH={step:"id",acct:null,err:""};
+function sessLoad(){ try{ const s=JSON.parse(localStorage.getItem("mm_session")||"null"); if(s&&s.exp>Date.now())return s; }catch(e){} return null; }
+function sessSave(a){ SESSION={id:a.id,name:a.name,exp:Date.now()+1000*60*60*24*30}; try{localStorage.setItem("mm_session",JSON.stringify(SESSION));}catch(e){} }
+function signOutUser(){ SESSION=null; try{localStorage.removeItem("mm_session");}catch(e){} state.isAdmin=false; state.isSuper=false; applyRole(); closeNav(); authShow(); }
+function applyUserFoot(){ const b=$("#userSignOut"); if(!b)return; if(SESSION){ b.style.display="flex"; $("#userSignOutLabel").textContent=t("Sign out")+" \u00b7 "+((SESSION.name||"").split(" ")[0]||""); } else b.style.display="none"; }
+async function authPing(){ try{ const{error}=await sb.from("hub_accounts").select("id").limit(1); return !error; }catch(e){ return false; } }
+async function sha256hex(s){ const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s)); return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,"0")).join(""); }
+function randHex(n){ const a=new Uint8Array(n); crypto.getRandomValues(a); return Array.from(a).map(x=>x.toString(16).padStart(2,"0")).join(""); }
+function authShow(){ document.body.classList.add("authgate"); AUTH={step:"id",acct:null,err:""}; renderAuth(); }
+function authHero(sub){ return `<div class="auth-hero"><div class="auth-logo"><img src="${LOGO_DATA_URI}" alt=""></div><h1 class="auth-title serif">${esc(CONFIG.companyName)} HR Hub</h1><p class="auth-sub">${sub}</p></div>`; }
+async function renderAuth(){
+  const v=$("#view"); if(!v)return;
+  const err=AUTH.err?`<div class="auth-err">${esc(AUTH.err)}</div>`:"";
+  if(AUTH.step==="id"){
+    const b=bioLocal(); let bioBtn="";
+    if(b && await bioSupported()) bioBtn=`<button class="btn btn-ghost auth-bio" onclick="authBio()"><i class="ti ti-fingerprint"></i> ${t("Unlock as")} ${esc((b.name||"").split(" ")[0])}</button>`;
+    v.innerHTML=`<div class="auth-wrap">${authHero(t("Sign in to open the Hub."))}
+      <div class="auth-card">
+        <input id="authId" class="auth-input" placeholder="${t("Email or setup code")}" autocomplete="username" autocapitalize="none">
+        ${err}<button class="btn btn-primary" style="width:100%" onclick="authLookup()">${t("Continue")}</button>${bioBtn}
+      </div>
+      <div class="auth-hint">${t("First time here? Enter the email the office has on file, or the setup code they gave you.")}<br>${t("No email and no code? Ask the office to create your account.")}</div>
+      <div class="wel-langs" style="flex-direction:row;justify-content:center;gap:8px;margin-top:16px">
+        <button class="btn btn-ghost btn-sm" onclick="setLang('en');renderAuth()">EN</button>
+        <button class="btn btn-ghost btn-sm" onclick="setLang('es');renderAuth()">ES</button>
+      </div></div>`;
+    setTimeout(()=>{const i=$("#authId");if(i){i.focus();i.addEventListener("keydown",e=>{if(e.key==="Enter")authLookup();});}},60);
+  }
+  else if(AUTH.step==="pin"){
+    const b=bioLocal(); let bioBtn="";
+    if(b && b.accId===AUTH.acct.id && await bioSupported()) bioBtn=`<button class="btn btn-ghost auth-bio" onclick="authBio()"><i class="ti ti-fingerprint"></i> ${t("Use fingerprint or face")}</button>`;
+    v.innerHTML=`<div class="auth-wrap">${authHero(t("Welcome back."))}
+      <div class="auth-card"><div class="auth-name">${esc(AUTH.acct.name)}</div>
+        <input id="authPin" class="auth-input auth-pin" inputmode="numeric" maxlength="8" placeholder="\u2022\u2022\u2022\u2022" autocomplete="current-password" type="password">
+        ${err}<button class="btn btn-primary" style="width:100%" onclick="authVerify()">${t("Unlock")}</button>${bioBtn}
+        <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="AUTH={step:'id',acct:null,err:''};renderAuth()">${t("Not you? Go back")}</button>
+      </div>
+      <div class="auth-hint">${t("Forgot your passcode? Ask the office to reset it and give you a new setup code.")}</div></div>`;
+    setTimeout(()=>{const i=$("#authPin");if(i){i.focus();i.addEventListener("keydown",e=>{if(e.key==="Enter")authVerify();});}},60);
+  }
+  else if(AUTH.step==="setpin"){
+    v.innerHTML=`<div class="auth-wrap">${authHero(t("Let's set up your account."))}
+      <div class="auth-card"><div class="auth-name">${esc(AUTH.acct.name)}</div>
+        <p style="font-size:13px;color:var(--sub);margin:0 0 12px;text-align:center">${t("Create a passcode of 4 to 8 digits. You'll use it to open the Hub on any device.")}</p>
+        <input id="pinA" class="auth-input auth-pin" inputmode="numeric" maxlength="8" placeholder="${t("New passcode")}" type="password" autocomplete="new-password">
+        <input id="pinB" class="auth-input auth-pin" inputmode="numeric" maxlength="8" placeholder="${t("Repeat it")}" type="password" autocomplete="new-password">
+        ${err}<button class="btn btn-primary" style="width:100%" onclick="authSetPin()">${t("Save passcode")}</button>
+      </div></div>`;
+    setTimeout(()=>{const i=$("#pinA");if(i)i.focus();},60);
+  }
+  else if(AUTH.step==="bio"){
+    v.innerHTML=`<div class="auth-wrap">${authHero(t("One more thing."))}
+      <div class="auth-card" style="text-align:center"><i class="ti ti-fingerprint" style="font-size:44px;color:var(--accent)"></i>
+        <p style="font-size:13.5px;color:var(--sub);line-height:1.55;margin:12px 0 16px">${t("Add fingerprint or face unlock on this phone? Next time you can open the Hub without typing your passcode.")}</p>
+        <button class="btn btn-primary" style="width:100%" onclick="authEnrollBio()">${t("Enable it")}</button>
+        <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="authFinish(AUTH.acct)">${t("Not now")}</button>
+      </div></div>`;
+  }
+}
+async function authLookup(){
+  const q=(($("#authId")||{}).value||"").trim(); if(!q)return;
+  AUTH.err="";
+  let a=null; try{ a=await DB.accountByLogin(q); }catch(e){ AUTH.err=t("Could not check right now. Try again."); renderAuth(); return; }
+  if(!a){ AUTH.err=t("No account found for that. Check it, or ask the office."); renderAuth(); return; }
+  if(a.status==="disabled"){ AUTH.err=t("This account is disabled. Talk to the office."); renderAuth(); return; }
+  AUTH.acct=a;
+  AUTH.step=a.pin_hash?"pin":"setpin";
+  renderAuth();
+}
+async function authVerify(){
+  const pin=(($("#authPin")||{}).value||"").trim();
+  if(!/^\d{4,8}$/.test(pin)){ AUTH.err=t("Enter your 4 to 8 digit passcode."); renderAuth(); return; }
+  const h=await sha256hex((AUTH.acct.pin_salt||"")+pin);
+  if(h!==AUTH.acct.pin_hash){ AUTH.err=t("Wrong passcode. Try again."); renderAuth(); return; }
+  authFinish(AUTH.acct);
+}
+async function authSetPin(){
+  const a=(($("#pinA")||{}).value||"").trim(), b=(($("#pinB")||{}).value||"").trim();
+  if(!/^\d{4,8}$/.test(a)){ AUTH.err=t("Use 4 to 8 digits."); renderAuth(); return; }
+  if(a!==b){ AUTH.err=t("The two passcodes don't match."); renderAuth(); return; }
+  const salt=randHex(16); const hash=await sha256hex(salt+a);
+  try{ await DB.updateAccount(AUTH.acct.id,{pin_salt:salt,pin_hash:hash,status:"active",setup_code:null}); }
+  catch(e){ AUTH.err=t("Could not save. Try again."); renderAuth(); return; }
+  AUTH.acct.pin_salt=salt; AUTH.acct.pin_hash=hash; AUTH.acct.status="active";
+  AUTH.step=(await bioSupported())?"bio":null;
+  if(AUTH.step==="bio") renderAuth(); else authFinish(AUTH.acct);
+}
+async function authEnrollBio(){
+  try{ await bioEnroll(AUTH.acct); toast(t("Fingerprint / face unlock is on for this phone")); }
+  catch(e){ toast(t("Could not enable it on this device")); }
+  authFinish(AUTH.acct);
+}
+async function authBio(){
+  try{ const a=await bioUnlock(); if(a){ AUTH.acct=a; authFinish(a); return; } }
+  catch(e){}
+  AUTH.err=t("Fingerprint / face unlock did not work. Use your passcode."); if(AUTH.acct)AUTH.step="pin"; renderAuth();
+}
+function authFinish(a){
+  sessSave(a);
+  try{ DB.updateAccount(a.id,{last_login:new Date().toISOString()}); }catch(e){}
+  document.body.classList.remove("authgate");
+  applyUserFoot(); goModule("policies"); welcomeMaybe();
+}
+async function bioSupported(){ try{ return !!(window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); }catch(e){ return false; } }
+function bioLocal(){ try{ return JSON.parse(localStorage.getItem("mm_bio")||"null"); }catch(e){ return null; } }
+async function bioEnroll(a){
+  const cred=await navigator.credentials.create({publicKey:{
+    challenge:crypto.getRandomValues(new Uint8Array(32)),
+    rp:{name:"M & M HR Hub"},
+    user:{id:new TextEncoder().encode(String(a.id)),name:a.email||a.name,displayName:a.name},
+    pubKeyCredParams:[{type:"public-key",alg:-7},{type:"public-key",alg:-257}],
+    authenticatorSelection:{authenticatorAttachment:"platform",userVerification:"required",residentKey:"preferred"},
+    timeout:60000
+  }});
+  const id=btoa(String.fromCharCode.apply(null,new Uint8Array(cred.rawId))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+  try{ localStorage.setItem("mm_bio",JSON.stringify({accId:a.id,name:a.name,credId:id})); }catch(e){}
+  try{ await DB.updateAccount(a.id,{bio_enrolled:true}); }catch(e){}
+}
+async function bioUnlock(){
+  const b=bioLocal(); if(!b)return null;
+  const raw=Uint8Array.from(atob(b.credId.replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0));
+  await navigator.credentials.get({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),allowCredentials:[{type:"public-key",id:raw}],userVerification:"required",timeout:60000}});
+  const a=await DB.accountById(b.accId);
+  if(!a||a.status==="disabled")return null;
+  return a;
+}
+
+/* ============================================================ ACCOUNTS (ADMIN) ============================================================ */
+let ACCTS=[];
+async function renderAccounts(){
+  if(!state.isAdmin){ $("#view").innerHTML=pageHead("Accounts","Accounts","")+`<div class="empty"><i class="ti ti-lock"></i><p>${t("Sign in as admin to manage accounts.")}</p></div>`; return; }
+  $("#view").innerHTML=pageHead(t("Admin"),t("Accounts"),"")+`<div class="card"><div style="color:var(--sub);font-size:13.5px"><i class="ti ti-loader-2"></i> ${t("Loading...")}</div></div>`;
+  let ok=true;
+  try{ ACCTS=await DB.accounts(); }catch(e){ ok=false; }
+  if(!ok){
+    $("#view").innerHTML=pageHead(t("Admin"),t("Accounts"),"")+`<div class="empty"><i class="ti ti-database-off"></i><p>${t("The accounts table isn't set up yet. Run the hub_accounts SQL in Supabase, then refresh.")}</p></div>`;
+    return;
+  }
+  try{ if(!PROFILES.length) PROFILES=await DB.profiles(); }catch(e){}
+  const rows=ACCTS.map((a,i)=>{
+    const stat=a.status||"pending";
+    const sub = a.email ? esc(a.email) : (a.setup_code?`${t("Setup code")}: <span class="acc-code">${esc(a.setup_code)}</span>`:t("No email on file"));
+    return `<div class="acc-row">
+      <div class="acc-main"><div class="acc-name">${esc(a.name)}</div><div class="acc-sub">${sub}</div></div>
+      ${a.bio_enrolled?`<i class="ti ti-fingerprint acc-bio" title="Biometric unlock enrolled"></i>`:""}
+      <span class="acc-chip ${stat}">${t(stat==="active"?"Active":stat==="disabled"?"Disabled":"Pending setup")}</span>
+      <div class="acc-actions">
+        <button title="${t("Reset passcode")}" onclick="accReset('${a.id}')"><i class="ti ti-refresh"></i></button>
+        <button title="${stat==="disabled"?t("Enable"):t("Disable")}" onclick="accToggle('${a.id}')"><i class="ti ${stat==="disabled"?"ti-circle-check":"ti-ban"}"></i></button>
+        <button title="${t("Delete")}" onclick="accDelete('${a.id}')"><i class="ti ti-trash"></i></button>
+      </div></div>`;
+  }).join("");
+  $("#view").innerHTML=pageHead(t("Admin"),t("Accounts"),t("Who can sign in to the Hub. Create an account, hand over the setup code, and the person picks their own passcode on first sign-in."))
+    +`<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:16px">
+      <button class="btn btn-primary" onclick="accCreate()"><i class="ti ti-user-plus"></i> ${t("Create an account")}</button>
+      <button class="btn btn-ghost" onclick="accBulk()"><i class="ti ti-users-plus"></i> ${t("Create for everyone missing one")}</button>
+    </div>`
+    +(ACCTS.length?rows:`<div class="empty"><i class="ti ti-key"></i><p>${t("No accounts yet. Create the first one.")}</p></div>`);
+}
+function accCreate(){
+  const have=new Set(ACCTS.map(a=>(a.name||"").trim().toLowerCase()));
+  const opts=(PROFILES||[]).filter(p=>p.active!==false&&!have.has((p.name||"").trim().toLowerCase()))
+    .map(p=>`<option value="${esc(p.name)}">${esc(p.name)}</option>`).join("");
+  $("#modalBox").innerHTML=`<h3>${t("Create an account")}</h3>
+    <div class="field"><label>${t("Pick from the directory")}</label><select class="f-input" id="accSel"><option value="">${t("Someone else (type below)")}</option>${opts}</select></div>
+    <div class="field"><label>${t("Or type the name")}</label><input class="f-input" id="accName" placeholder="${t("Full name")}"></div>
+    <div class="field"><label>${t("Email (optional)")}</label><input class="f-input" id="accEmail" placeholder="name@gmail.com" autocapitalize="none"></div>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">${t("Cancel")}</button><button class="btn btn-primary" onclick="accSave()">${t("Create")}</button></div>`;
+  openModal();
+}
+async function accSave(){
+  const name=(($("#accSel")||{}).value||($("#accName")||{}).value||"").trim()||(($("#accName")||{}).value||"").trim();
+  if(!name){ toast(t("Name is required")); return; }
+  const email=(($("#accEmail")||{}).value||"").trim().toLowerCase()||null;
+  const code=genCode();
+  let a=null;
+  try{ a=await DB.addAccount({name,email,setup_code:code,status:"pending"}); }
+  catch(e){ toast(t("Could not create. Is that email already used?")); return; }
+  closeModal(); await renderAccounts(); accShowCode(a||{name,email,setup_code:code});
+}
+function accShowCode(a){
+  $("#modalBox").innerHTML=`<h3>${t("Account created")}</h3>
+    <p style="font-size:13.5px;color:var(--sub);line-height:1.55">${esc(a.name)} ${t("can now sign in for the first time")} ${a.email?t("with their email")+" (<b>"+esc(a.email)+"</b>) "+t("or"):""} ${t("with this one-time setup code:")}</p>
+    <div style="text-align:center;margin:14px 0"><span class="acc-code" style="font-size:22px;padding:8px 18px">${esc(a.setup_code)}</span></div>
+    <p style="font-size:12.5px;color:var(--faint);line-height:1.5">${t("They'll pick their own passcode on first sign-in, and the code stops working after that.")}</p>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="copyText('${esc(a.setup_code)}');toast(t('Copied'))">${t("Copy code")}</button><button class="btn btn-primary" onclick="closeModal()">${t("Done")}</button></div>`;
+  openModal();
+}
+async function accBulk(){
+  const have=new Set(ACCTS.map(a=>(a.name||"").trim().toLowerCase()));
+  const missing=(PROFILES||[]).filter(p=>p.active!==false&&!have.has((p.name||"").trim().toLowerCase()));
+  if(!missing.length){ toast(t("Everyone in the directory already has an account")); return; }
+  if(!confirm(t("Create accounts with setup codes for")+" "+missing.length+" "+t("people?"))) return;
+  const made=[];
+  for(const p of missing){
+    const code=genCode();
+    try{ await DB.addAccount({name:p.name,email:(p.email||"").trim().toLowerCase()||null,setup_code:code,status:"pending"}); made.push(p.name+": "+code); }catch(e){}
+  }
+  await renderAccounts();
+  if(made.length){
+    const lines=["M & M Solutions HR Hub","One-time setup codes \u00b7 "+new Date().toLocaleDateString(),"","Give each person their code. They sign in at the Hub, enter the code, and pick their own passcode.",""].concat(made);
+    const blob=new Blob([lines.join("\n")],{type:"text/plain"});
+    const aEl=document.createElement("a"); aEl.href=URL.createObjectURL(blob); aEl.download="hub-setup-codes.txt";
+    document.body.appendChild(aEl); aEl.click(); document.body.removeChild(aEl); URL.revokeObjectURL(aEl.href);
+    toast(made.length+" "+t("accounts created, code list downloaded"));
+  }
+}
+async function accReset(id){
+  if(!confirm(t("Reset this passcode? They'll get a new setup code and pick a new passcode.")))return;
+  const code=genCode();
+  try{ await DB.updateAccount(id,{pin_hash:null,pin_salt:null,status:"pending",setup_code:code,bio_enrolled:false}); }catch(e){ toast(t("Could not reset")); return; }
+  await renderAccounts();
+  const a=ACCTS.find(x=>x.id===id)||{name:"",setup_code:code};
+  accShowCode(Object.assign({},a,{setup_code:code}));
+}
+async function accToggle(id){
+  const a=ACCTS.find(x=>x.id===id); if(!a)return;
+  const to=a.status==="disabled"?(a.pin_hash?"active":"pending"):"disabled";
+  try{ await DB.updateAccount(id,{status:to}); }catch(e){ toast(t("Could not update")); return; }
+  renderAccounts();
+}
+async function accDelete(id){
+  if(!confirm(t("Delete this account permanently?")))return;
+  try{ await DB.deleteAccount(id); }catch(e){ toast(t("Could not delete")); return; }
+  renderAccounts();
+}
+
 /* ============================================================ WELCOME & GUIDED TOUR ============================================================ */
 function welcomeMaybe(){ if(state.kiosk)return; try{ if(localStorage.getItem("mm_welcome_done")==="1")return; }catch(e){return;} welcomeShow(); }
 function welcomeShow(){
@@ -1651,6 +1920,7 @@ const SOP_ARTICLES=[
   {t:"Approving time off and balances",a:"Admin",b:"<p>Open Time off and switch to Manager view. Pending requests show who, what type, the dates, and the balance impact. Approve or Decline. Approving a sick request deducts the hours (8 per day) from that person's bank. You can Revoke an approval to add the hours back.</p><p>To set a balance directly, open People, then Edit next to a person, and change the sick hours.</p>"},
   {t:"Managing sick-leave balances",a:"Admin",b:"<p>Sick leave is frontloaded at 40 hours (5 days) a year and tracked in hours. New hires start at 0 and become eligible on their 90th day. The HR Dashboard flags anyone past 90 days who still needs their 40 set. Set it in People, then Edit.</p><p>Vacation and PTO are not tracked, since California does not require them.</p>"},
   {t:"Using the Directory",a:"Admin",b:"<p>Directory lists the whole crew. Tap a name to open their card with contact, employment, pay, documents, training, and sick balance. SSN and date of birth are kept out on purpose. You can attach documents to a card: see the SOP on attaching documents.</p>"},
+  {t:"Hub accounts and sign-in",a:"Admin",b:"<p>Everyone opens the Hub with their own account. First time, they enter the email the office has on file, or a one-time setup code, then pick a 4 to 8 digit passcode and can turn on fingerprint or face unlock for their phone. After that, the Hub remembers them on that device for 30 days.</p><p>Manage it all from Accounts on the admin home. Create an account for anyone (email optional), and the Hub gives you a one-time setup code to hand over, so new hires never need a code edit. Use the bulk button to create accounts with codes for everyone in the directory at once and download the code list. Reset a passcode when someone forgets it, or disable an account when someone leaves. Passcodes are stored hashed, never in plain text.</p>"},
   {t:"Recruitment and onboarding",a:"Admin",b:"<p>Recruitment has three tabs. Pipeline moves candidates from Applied to Hired. Job postings hold your open roles. Onboarding tracks new hires. When you move a candidate to Hired, pick the checklist that fits: US crew (California W-2 paperwork, handbook, and training) or Remote contractor (W-8BEN, contractor agreement, and setup). The Hub makes a private six-character code. Copy the link and send it to the new hire, who works through their checklist at their own pace.</p><p>Acknowledgment steps ask the new hire to type their full legal name, which is stored with a timestamp as their signature. Tap any onboarding card to open its panel, where you can review progress and signatures, copy the link, download a signed acknowledgment receipt, or delete the onboarding.</p><p>The handbook step opens a policy-by-policy review. The new hire taps each policy title to expand and read it, then acknowledges it, and the Hub records when each policy was opened and acknowledged. The overall handbook signature unlocks only after every policy is acknowledged, and the receipt download lists the evidence per policy.</p>"},
   {t:"Attaching a document to an employee",a:"Admin",b:"<p>Upload the file to Google Drive first and set its sharing so the office can open it. Copy the share link. In the Directory, open the person's card, go to Files, tap Add file, paste the link, give it a label like W-4 or ID, and save. The link shows on their card. Nothing is stored in the Hub itself, so keep the Drive access controlled.</p>"},
   {t:"For super admin: people and passcodes",a:"Super admin",b:"<p>Super admin can add and remove people in Time off, then People. Removing is a soft delete: the person leaves the active lists but the record stays.</p><p>Change the admin and super-admin passcodes before launch. They are set in the Hub file, so send the new codes to have them baked in.</p>"}
@@ -1845,7 +2115,8 @@ function polHome(v){
     <button class="action-card" onclick="goModule('recruit')"><div class="ai">\u{1F4BC}</div><div><h3>${t('Recruitment')}</h3><p>${t('Hiring and onboarding')}</p></div></button>
     <button class="action-card" onclick="goModule('toolkit')"><div class="ai">\u{1F9F0}</div><div><h3>${t('Manager Toolkit')}</h3><p>${t('Tools and how-tos')}</p></div></button>
     <button class="action-card" onclick="goModule('sop')"><div class="ai">\u{1F4DA}</div><div><h3>${t('SOP Library')}</h3><p>${t('Guides for the Hub')}</p></div></button>
-    <button class="action-card" onclick="goModule('hrinbox')"><div class="ai">\u{1F4E5}</div><div><h3>${t('HR Inbox')}</h3><p>${t('Forms sent to HR')}</p></div></button>` : "";
+    <button class="action-card" onclick="goModule('hrinbox')"><div class="ai">\u{1F4E5}</div><div><h3>${t('HR Inbox')}</h3><p>${t('Forms sent to HR')}</p></div></button>
+    <button class="action-card" onclick="goModule('accounts')"><div class="ai">\u{1F511}</div><div><h3>${t('Accounts')}</h3><p>${t('Hub logins and access')}</p></div></button>` : "";
   const actions=`<div class="section-label">${t('Quick actions')}</div><div class="action-grid">
     <button class="action-card" data-tour="policies" onclick="openPolicies()"><div class="ai">\u{1F4D6}</div><div><h3>${t('Policies')}</h3><p>${t('Read your policies')}</p></div></button>
     <button class="action-card" data-tour="clock" onclick="goModule('clock')"><div class="ai">\u{1F550}</div><div><h3>${t('Clock in / out')}</h3><p>${t('Start or end your shift')}</p></div></button>
