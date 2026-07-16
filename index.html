@@ -1815,10 +1815,11 @@ async function renderAccounts(){
     const stat=a.status||"pending";
     const sub = a.email ? esc(a.email) : (a.setup_code?`${t("Setup code")}: <span class="acc-code">${esc(a.setup_code)}</span>`:t("No email on file"));
     return `<div class="acc-row">
-      <div class="acc-main"><div class="acc-name">${esc(a.name)}</div><div class="acc-sub">${sub}</div></div>
+      <div class="acc-main" style="cursor:pointer" onclick="accEdit('${a.id}')"><div class="acc-name">${esc(a.name)}</div><div class="acc-sub">${sub}</div></div>
       ${a.bio_enrolled?`<i class="ti ti-fingerprint acc-bio" title="Biometric unlock enrolled"></i>`:""}
       <span class="acc-chip ${stat}">${t(stat==="active"?"Active":stat==="disabled"?"Disabled":"Pending setup")}</span>
       <div class="acc-actions">
+        <button title="${t("Edit account")}" onclick="accEdit('${a.id}')"><i class="ti ti-pencil"></i></button>
         <button title="${t("Reset passcode")}" onclick="accReset('${a.id}')"><i class="ti ti-refresh"></i></button>
         <button title="${stat==="disabled"?t("Enable"):t("Disable")}" onclick="accToggle('${a.id}')"><i class="ti ${stat==="disabled"?"ti-circle-check":"ti-ban"}"></i></button>
         <button title="${t("Delete")}" onclick="accDelete('${a.id}')"><i class="ti ti-trash"></i></button>
@@ -1851,6 +1852,32 @@ async function accSave(){
   try{ a=await DB.addAccount({name,email,setup_code:code,status:"pending"}); }
   catch(e){ toast(t("Could not create. Is that email already used?")); return; }
   closeModal(); await renderAccounts(); accShowCode(a||{name,email,setup_code:code});
+}
+function accEdit(id){
+  const a=(ACCTS||[]).find(x=>x.id===id); if(!a)return;
+  const stat=a.status||"pending";
+  const statLbl=stat==="active"?t("Active"):stat==="disabled"?t("Disabled"):t("Pending setup");
+  const signState=a.pin_hash?t("Passcode set"):t("No passcode yet");
+  const codeLine=(!a.pin_hash&&a.setup_code)?`<div style="margin:2px 0 10px;font-size:12.5px;color:var(--sub)">${t("Current setup code")}: <span class="acc-code">${esc(a.setup_code)}</span></div>`:"";
+  $("#modalBox").innerHTML=`<h3>${t("Account")}</h3>
+    <div class="field"><label>${t("Full name")}</label><input class="f-input" id="accEName" value="${esc(a.name||"")}"></div>
+    <div class="field"><label>${t("Email used to sign in")}</label><input class="f-input" id="accEEmail" value="${esc(a.email||"")}" placeholder="name@mandmsolutionsllc.com" autocapitalize="none"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--sub);margin:2px 0 8px"><span class="acc-chip ${stat}">${statLbl}</span><span>${signState}</span>${a.bio_enrolled?`<span>\u00b7 ${t("Fingerprint / face unlock on")}</span>`:""}</div>
+    ${codeLine}
+    <div style="font-size:11.5px;color:var(--faint);margin-top:2px;line-height:1.5">${t("Only one email works per account, so use the one they'll actually use. The name must match the Directory so clock-ins and time off link up.")}</div>
+    <div class="modal-foot" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <button class="btn btn-ghost" onclick="accReset('${a.id}')"><i class="ti ti-refresh"></i> ${t("Reset passcode")}</button>
+      <span style="display:flex;gap:8px"><button class="btn btn-ghost" onclick="closeModal()">${t("Cancel")}</button><button class="btn btn-primary" onclick="accEditSave('${a.id}')">${t("Save")}</button></span>
+    </div>`;
+  openModal();
+}
+async function accEditSave(id){
+  const name=(($("#accEName")||{}).value||"").trim();
+  const email=(($("#accEEmail")||{}).value||"").trim().toLowerCase()||null;
+  if(!name){ toast(t("Name is required")); return; }
+  try{ await DB.updateAccount(id,{name,email}); }
+  catch(e){ toast(t("Could not create. Is that email already used?")); return; }
+  closeModal(); await renderAccounts(); toast(t("Saved"));
 }
 function accShowCode(a){
   $("#modalBox").innerHTML=`<h3>${t("Account created")}</h3>
