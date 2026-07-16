@@ -355,6 +355,28 @@ body.authgate .sidebar,body.authgate .topbar{display:none}
 .ts-table .num{text-align:right;font-variant-numeric:tabular-nums}
 .ts-table .ot{color:var(--warn);font-weight:600} .ts-table .dt{color:var(--bad);font-weight:600}
 .ts-foot td{font-weight:700;border-top:2px solid var(--border)}
+.ts-toggle{display:inline-flex;gap:2px;background:var(--accent-soft);border-radius:9px;padding:2px;margin-left:auto}
+.ts-toggle button{border:none;background:transparent;color:var(--sub);font-size:12.5px;font-weight:700;padding:6px 13px;border-radius:7px;cursor:pointer;transition:background .12s,color .12s}
+.ts-toggle button.on{background:var(--surface);color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.ts-emp{margin-top:18px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.ts-emp-h{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--bg);border-bottom:1px solid var(--border)}
+.ts-emp-h .nm{font-weight:700;font-size:14.5px;color:var(--text)}
+.ts-emp-h .tot{margin-left:auto;font-size:13px;font-weight:700;color:var(--accent);white-space:nowrap}
+.ts-emp-h .tot span{color:var(--sub);font-weight:600}
+.ts-day{border-bottom:1px solid var(--border)}
+.ts-day:last-child{border-bottom:none}
+.ts-day-h{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--surface)}
+.ts-day-h .d{font-size:12.5px;font-weight:700;color:var(--text)}
+.ts-day-h .dt{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
+.ts-punch{display:flex;align-items:center;gap:10px;padding:7px 14px 7px 26px;font-size:12.5px;color:var(--sub);border-top:1px dashed var(--border)}
+.ts-punch .io{font-variant-numeric:tabular-nums;color:var(--text)}
+.ts-punch .io b{font-weight:650}
+.ts-punch .kind{font-size:11px;font-weight:600;color:var(--warn)}
+.ts-punch .site{color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ts-punch .ph{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:650;color:var(--text)}
+.ts-punch .open{color:var(--ok);font-weight:700}
+.ts-grand{display:flex;align-items:center;padding:14px;margin-top:18px;background:var(--accent-soft);border-radius:var(--radius);font-weight:700;color:var(--accent-d)}
+.ts-grand .g{margin-left:auto;font-size:16px;font-variant-numeric:tabular-nums}
 .daterow{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:18px}
 .daterow .field{margin-bottom:0}
 
@@ -2492,6 +2514,7 @@ function atAdmin(){
   const today=new Date().toISOString().slice(0,10);
   const todays=ATT.filter(a=>a.clock_in.slice(0,10)===today);
   if(!state.tsRange){const end=new Date();const start=new Date();start.setDate(start.getDate()-6);state.tsRange={start:start.toISOString().slice(0,10),end:end.toISOString().slice(0,10),team:"all"};}
+  if(!state.tsView)state.tsView="summary";
 
   const liveHtml=openNow.length?`<div class="live-list">${openNow.map(a=>`<div class="live-row"><span class="pulse"></span><div class="avatar" style="width:30px;height:30px;font-size:11px;background:${avatarColor(a.team)}">${initials(a.employee_name)}</div><div><div style="font-size:13.5px;font-weight:600">${esc(a.employee_name)}</div><div style="font-size:12px;color:var(--faint)">${a.site?esc(a.site)+" · ":""}in at ${fmtTime(a.clock_in)}${mapLink(a)}</div></div><span class="since">${sinceText(a.clock_in)}</span></div>`).join("")}</div>`:`<div class="empty" style="padding:24px"><i class="ti ti-coffee"></i><p>Nobody clocked in right now.</p></div>`;
 
@@ -2502,15 +2525,21 @@ function atAdmin(){
       <div class="card"><div class="section-label">Today (${todays.length} entr${todays.length===1?'y':'ies'})</div>${todays.length?todays.map(atRow).join(""):`<div class="empty" style="padding:24px"><i class="ti ti-calendar"></i><p>No entries today yet.</p></div>`}</div>
     </div>
     <div class="card" style="margin-top:20px">
-      <div class="section-label">Timesheets</div>
-      <div class="daterow">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div class="section-label" style="margin:0">Timesheets</div>
+        <div class="ts-toggle">
+          <button class="${state.tsView!=='daily'?'on':''}" onclick="state.tsView='summary';renderAttendance()">Summary</button>
+          <button class="${state.tsView==='daily'?'on':''}" onclick="state.tsView='daily';renderAttendance()">Daily</button>
+        </div>
+      </div>
+      <div class="daterow" style="margin-top:14px">
         <div class="field"><label>From</label><input class="f-input" type="date" id="tsStart" value="${state.tsRange.start}" onchange="state.tsRange.start=this.value;renderAttendance()"/></div>
         <div class="field"><label>To</label><input class="f-input" type="date" id="tsEnd" value="${state.tsRange.end}" onchange="state.tsRange.end=this.value;renderAttendance()"/></div>
         <div class="field"><label>Team</label><select class="f-input" id="tsTeam" onchange="state.tsRange.team=this.value;renderAttendance()"><option value="all" ${state.tsRange.team==='all'?'selected':''}>All</option><option value="ca" ${state.tsRange.team==='ca'?'selected':''}>California</option><option value="ph" ${state.tsRange.team==='ph'?'selected':''}>Philippines</option></select></div>
         <button class="btn btn-ghost" onclick="exportCSV()"><i class="ti ti-download"></i> Export CSV</button>
       </div>
-      ${timesheetTable()}
-      <p style="font-size:11.5px;color:var(--faint);margin-top:14px;line-height:1.5">Hours are split into Office (non-cleaning rate), Travel between sites, and Onsite cleaning, so payroll can apply the right rate to each. Overtime, double-time, the 7th-day rule, break premiums, and the actual pay rates are applied in payroll, not here. Use this as a reviewed timesheet to hand to payroll, not as the final paycheck.</p>
+      ${state.tsView==='daily'?dailyTable():timesheetTable()}
+      <p style="font-size:11.5px;color:var(--faint);margin-top:14px;line-height:1.5">${state.tsView==='daily'?"Each day shows every punch with the time clocked in, time clocked out, and hours for that punch, then a total per day and a grand total for the chosen dates. Open shifts (still clocked in) are marked and not counted in totals.":"Hours are split into Office (non-cleaning rate), Travel between sites, and Onsite cleaning, so payroll can apply the right rate to each. Overtime, double-time, the 7th-day rule, break premiums, and the actual pay rates are applied in payroll, not here. Use this as a reviewed timesheet to hand to payroll, not as the final paycheck."}</p>
     </div>`;
 }
 function sinceText(iso){const m=Math.floor((Date.now()-new Date(iso))/60000);if(m<60)return m+"m";const h=Math.floor(m/60);return h+"h "+(m%60)+"m";}
@@ -2535,7 +2564,67 @@ function timesheetTable(){
     ${data.map(d=>`<tr><td>${esc(d.name)}</td><td>${teamChip(d.team)}</td><td class="num">${d.daysWorked}</td><td class="num">${r1(d.office)}</td><td class="num">${r1(d.travel)}</td><td class="num">${r1(d.onsite)}</td><td class="num">${r1(d.remote)}</td><td class="num"><b>${r1(d.total)}</b></td></tr>`).join("")}
   </tbody><tfoot><tr class="ts-foot"><td colspan="3">Total</td><td class="num">${r1(tot.office)}</td><td class="num">${r1(tot.travel)}</td><td class="num">${r1(tot.onsite)}</td><td class="num">${r1(tot.remote)}</td><td class="num">${r1(tot.total)}</td></tr></tfoot></table></div>`;
 }
+/* Daily view: for the chosen range and team, group punches by employee, then by day,
+   showing each punch's clock-in time, clock-out time and hours, a per-day total, an
+   employee total, and a grand total. Open (still clocked-in) shifts are shown but not summed. */
+function dailyData(){
+  const {start,end,team}=state.tsRange;
+  const rows=ATT.filter(a=>a.clock_in.slice(0,10)>=start&&a.clock_in.slice(0,10)<=end&&(team==="all"||a.team===team));
+  const byEmp={};
+  rows.forEach(a=>{
+    const k=a.employee_id;
+    if(!byEmp[k])byEmp[k]={name:a.employee_name,team:a.team,days:{},total:0};
+    const d=a.clock_in.slice(0,10);
+    if(!byEmp[k].days[d])byEmp[k].days[d]={date:d,punches:[],total:0};
+    byEmp[k].days[d].punches.push(a);
+    if(a.clock_out){ const h=a.hours||0; byEmp[k].days[d].total+=h; byEmp[k].total+=h; }
+  });
+  return Object.values(byEmp).map(e=>({
+    name:e.name, team:e.team, total:e.total,
+    days:Object.values(e.days)
+      .map(d=>({...d,punches:d.punches.slice().sort((x,y)=>x.clock_in.localeCompare(y.clock_in))}))
+      .sort((a,b)=>a.date.localeCompare(b.date))
+  })).sort((a,b)=>a.name.localeCompare(b.name));
+}
+function dailyTable(){
+  const data=dailyData();
+  if(!data.length)return `<div class="empty" style="padding:30px"><i class="ti ti-calendar-off"></i><p>No time logged in this range.</p></div>`;
+  const kindLbl={travel:"Travel",office:"Office",remote:"Remote"};
+  let grand=0;
+  const blocks=data.map(e=>{
+    grand+=e.total;
+    const days=e.days.map(day=>{
+      const punches=day.punches.map(a=>{
+        const kind=kindLbl[a.kind]?`<span class="kind">${kindLbl[a.kind]}</span>`:"";
+        const site=a.site?`<span class="site">${esc(a.site)}</span>`:"";
+        const hrs=a.clock_out?`<span class="ph">${r1(a.hours||0)}h</span>`:`<span class="ph open">active</span>`;
+        return `<div class="ts-punch"><span class="io"><b>${fmtTime(a.clock_in)}</b> → ${a.clock_out?fmtTime(a.clock_out):"..."}</span>${kind}${site}${hrs}</div>`;
+      }).join("");
+      return `<div class="ts-day"><div class="ts-day-h"><span class="d">${fmtDay(day.date+"T00:00")}</span><span class="dt">${r1(day.total)}h</span></div>${punches}</div>`;
+    }).join("");
+    return `<div class="ts-emp"><div class="ts-emp-h"><span class="avatar" style="width:30px;height:30px;font-size:11px;background:${avatarColor(e.team)}">${initials(e.name)}</span><span class="nm">${esc(e.name)}</span>${teamChip(e.team)}<span class="tot">${r1(e.total)}h <span>total</span></span></div>${days}</div>`;
+  }).join("");
+  return blocks+`<div class="ts-grand"><span>Total for ${fmtDate(state.tsRange.start)} to ${fmtDate(state.tsRange.end)}</span><span class="g">${r1(grand)}h</span></div>`;
+}
 function exportCSV(){
+  if(state.tsView==='daily'){
+    const data=dailyData();
+    const head=["Employee","Team","Date","Clock in","Clock out","Kind","Site","Hours"];
+    const lines=[head.join(",")];
+    const kindLbl={travel:"Travel",office:"Office",remote:"Remote"};
+    const csvt=iso=>new Date(iso).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"});
+    data.forEach(e=>{
+      e.days.forEach(day=>{
+        day.punches.forEach(a=>{
+          lines.push([`"${e.name}"`,CONFIG.teams[e.team]?.label||e.team,day.date,csvt(a.clock_in),a.clock_out?csvt(a.clock_out):"(open)",kindLbl[a.kind]||"Onsite",`"${(a.site||"").replace(/"/g,'""')}"`,a.clock_out?r1(a.hours||0):""].join(","));
+        });
+        lines.push([`"${e.name}"`,"","",`"${fmtDate(day.date)} total"`,"","","",r1(day.total)].join(","));
+      });
+      lines.push([`"${e.name}"`,"","",'"Employee total"',"","","",r1(e.total)].join(","));
+    });
+    const blob=new Blob([lines.join("\n")],{type:"text/csv"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`timesheet_daily_${state.tsRange.start}_to_${state.tsRange.end}.csv`;a.click();URL.revokeObjectURL(url);toast("Daily timesheet exported");
+    return;
+  }
   const data=timesheetData();
   const head=["Employee","Team","Days worked","Office hours","Travel hours","Onsite (cleaning) hours","Remote hours","Total hours"];
   const lines=[head.join(",")].concat(data.map(d=>[`"${d.name}"`,CONFIG.teams[d.team]?.label||d.team,d.daysWorked,r1(d.office),r1(d.travel),r1(d.onsite),r1(d.remote),r1(d.total)].join(",")));
