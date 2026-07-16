@@ -777,7 +777,13 @@ let DEMO_EMP=[
   {id:"e30",name:"Tahir Shabazz",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
   {id:"e31",name:"Juan Quec Chacon",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
   {id:"e32",name:"Mannery De Leon",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e33",name:"Keila Calderon",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}}
+  {id:"e33",name:"Keila Calderon",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
+  {id:"e-owner",name:"Deander Gooden",team:"ca",email:"dgooden@mandmsolutionsllc.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},hire_date:"2025-03-03",bday:"04-12"}
+];
+/* Directory records (employee_profiles). In live mode these come from Supabase; this
+   array backs demo mode and anything added in-app through "Add person" in the Directory. */
+let DEMO_PROFILES=[
+  {id:"p-owner",name:"Deander Gooden",status:"Active",class:"W-2",team:"ca",role:"Owner",email:"dgooden@mandmsolutionsllc.com",phone:"",pay_rate:"50",pay_schedule:"Bi-weekly",dob:"April 12",work_setup:"onsite",docs:{pct:0},training:{},sick:{method:"Frontload (40 hrs)",accrued:0,used:0,balance:40},notes:"Owner. Record created from QuickBooks details on 2026-07-15."}
 ];
 let DEMO_REQ=[
   {id:"r1",employee_id:"e1",employee_name:"Maribel Rodas",team:"ca",type:"Vacation / PTO",start_date:"2026-07-06",end_date:"2026-07-07",half_day:false,days:2,reason:"Family event",status:"pending",created_at:"2026-06-27T09:00:00Z"},
@@ -808,9 +814,9 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 
 const DB={
   async employees(){ if(LIVE){const{data,error}=await sb.from("employees").select("*").order("name");if(error)throw error;INACTIVE_EMP=(data||[]).filter(e=>e.active===false);return data.filter(e=>e.active!==false);} INACTIVE_EMP=clone(DEMO_EMP).filter(e=>e.active===false); return clone(DEMO_EMP).filter(e=>e.active!==false); },
-  async profiles(){ if(LIVE){const{data,error}=await sb.from("employee_profiles").select("*").order("name");if(error)throw error;return (data||[]).filter(e=>e.active!==false);} return []; },
-  async updateProfile(id,patch){ if(!LIVE)return; const{error}=await sb.from("employee_profiles").update(patch).eq("id",id); if(error)throw error; },
-  async addProfile(p){ if(!LIVE)return; const{error}=await sb.from("employee_profiles").insert(p); if(error)throw error; },
+  async profiles(){ if(LIVE){const{data,error}=await sb.from("employee_profiles").select("*").order("name");if(error)throw error;return (data||[]).filter(e=>e.active!==false);} return clone(DEMO_PROFILES).filter(e=>e.active!==false).sort((a,b)=>(a.name||"").localeCompare(b.name||"")); },
+  async updateProfile(id,patch){ if(!LIVE){ const e=DEMO_PROFILES.find(x=>x.id===id); if(e)Object.assign(e,patch); return; } const{error}=await sb.from("employee_profiles").update(patch).eq("id",id); if(error)throw error; },
+  async addProfile(p){ if(!LIVE){ DEMO_PROFILES.push({...p,id:uid()}); return; } const{error}=await sb.from("employee_profiles").insert(p); if(error)throw error; },
   async addSubmission(o){ if(LIVE){const{error}=await sb.from("hr_submissions").insert([o]);if(error)throw error;} return true; },
   async submissions(){ if(LIVE){const{data,error}=await sb.from("hr_submissions").select("*").order("created_at",{ascending:false});if(error)throw error;return data||[];} return []; },
   async updateSubmission(id,patch){ if(LIVE){const{error}=await sb.from("hr_submissions").update(patch).eq("id",id);if(error)throw error;} },
@@ -1042,7 +1048,10 @@ async function renderDirectory(){
       + tab("new","ti-user-plus",t("New this month"),nNew)
       + tab("separated","ti-user-x",t("Separated"),nSep)
     + `</div>`
-    + `<div class="dir-search"><i class="ti ti-search"></i><input id="dirQ" placeholder="${t("Search name or role")}" oninput="dirFilter(this.value)"></div>`
+    + `<div style="display:flex;gap:9px;align-items:stretch;margin-bottom:14px">`
+      + `<div class="dir-search" style="flex:1;margin-bottom:0"><i class="ti ti-search"></i><input id="dirQ" placeholder="${t("Search name or role")}" oninput="dirFilter(this.value)"></div>`
+      + (state.isSuper?`<button class="btn btn-primary" style="white-space:nowrap" onclick="dirAddModal()"><i class="ti ti-user-plus"></i> ${t("Add person")}</button>`:``)
+    + `</div>`
     + `<div class="dir-list" id="dirList"></div>`;
   dirFilter("");
 }
@@ -1072,6 +1081,62 @@ function dirFilter(qstr){
       <span class="dir-right">${chip}<i class="ti ti-chevron-right" style="color:var(--faint)"></i></span>
     </button>`;
   }).join("");
+}
+/* Super-admin: add an office or admin person straight into the Directory
+   (employee_profiles), and optionally onto the clock roster (employees). */
+function dirAddModal(){
+  const mNames=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const monthOpts=`<option value="">Month</option>`+mNames.map((n,i)=>`<option value="${String(i+1).padStart(2,"0")}">${n}</option>`).join("");
+  const gs=`style="display:grid;grid-template-columns:1fr 1fr;gap:10px"`;
+  $("#modalBox").innerHTML=`<h3><i class="ti ti-user-plus"></i> ${t("Add person")}</h3>
+    <div class="field"><label>Full name</label><input class="f-input" id="dpName" placeholder="e.g. Deander Gooden"/></div>
+    <div class="field"><label>Role / title</label><input class="f-input" id="dpRole" placeholder="e.g. Owner, Cleaner, Office"/></div>
+    <div ${gs}>
+      <div class="field"><label>Team</label><select class="f-input" id="dpTeam" onchange="dpTeamSync()"><option value="ca">California</option><option value="ph">Philippines</option></select></div>
+      <div class="field"><label>Classification</label><select class="f-input" id="dpClass"><option value="W-2">W-2</option><option value="1099">1099</option></select></div>
+    </div>
+    <div ${gs}>
+      <div class="field"><label>Hire date</label><input class="f-input" type="date" id="dpHire"/></div>
+      <div class="field"><label>Pay rate ($/hr)</label><input class="f-input" type="number" id="dpRate" min="0" step="0.01" placeholder="50"/></div>
+    </div>
+    <div ${gs}>
+      <div class="field"><label>Birthday</label><div style="display:flex;gap:6px"><select class="f-input" id="dpBmonth">${monthOpts}</select><input class="f-input" type="number" id="dpBday" min="1" max="31" placeholder="Day" style="max-width:82px"/></div></div>
+      <div class="field"><label>Pay schedule</label><select class="f-input" id="dpSched"><option value="">-</option><option value="Weekly">Weekly</option><option value="Bi-weekly">Bi-weekly</option></select></div>
+    </div>
+    <div ${gs}>
+      <div class="field"><label>Email</label><input class="f-input" type="email" id="dpEmail" placeholder="name@mandmsolutionsllc.com"/></div>
+      <div class="field"><label>Phone</label><input class="f-input" type="tel" id="dpPhone" placeholder="(555) 555-5555"/></div>
+    </div>
+    <div class="field"><label>Work setup</label><select class="f-input" id="dpWs"><option value="onsite">Onsite / Field</option><option value="remote">Remote</option></select></div>
+    <label style="display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--sub);margin:8px 0 2px;cursor:pointer"><input type="checkbox" id="dpRoster" checked style="width:16px;height:16px"/> Also add to the clock roster (Time off, Clock, Timekeeping)</label>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="dirAddSave()"><i class="ti ti-user-plus"></i> ${t("Add")}</button></div>`;
+  openModal(); dpTeamSync();
+}
+function dpTeamSync(){ const tm=(($("#dpTeam")||{}).value)||"ca"; const cl=$("#dpClass"); const ws=$("#dpWs"); if(cl) cl.value=tm==="ph"?"1099":"W-2"; if(ws&&tm==="ph") ws.value="remote"; }
+async function dirAddSave(){
+  const g=id=>(($("#"+id)||{}).value||"").trim();
+  const name=g("dpName"); if(!name){ const el=$("#dpName"); if(el)el.style.borderColor="var(--bad)"; return; }
+  const team=g("dpTeam")||"ca";
+  const cls=g("dpClass")||(team==="ph"?"1099":"W-2");
+  const role=g("dpRole"), hire=g("dpHire"), rate=g("dpRate"), sched=g("dpSched");
+  const email=g("dpEmail"), phone=g("dpPhone"), ws=g("dpWs")||"onsite";
+  const bm=g("dpBmonth"), bd=parseInt(g("dpBday"),10);
+  const mNames=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  let bday="",dob="";
+  if(bm&&bd>=1&&bd<=31){ bday=bm+"-"+String(bd).padStart(2,"0"); dob=mNames[parseInt(bm,10)-1]+" "+bd; }
+  const toRoster=(($("#dpRoster")||{}).checked)!==false;
+  const profile={name,status:"Active",class:cls,team,role:role||null,email:email||null,phone:phone||null,pay_rate:rate||null,pay_schedule:sched||null,dob:dob||null,work_setup:ws,docs:{pct:0},training:{},sick:cls==="W-2"?{method:"Frontload (40 hrs)",accrued:0,used:0,balance:40}:{},notes:"Added in the Hub on "+new Date().toISOString().slice(0,10)+"."};
+  try{
+    await DB.addProfile(profile);
+    if(toRoster){
+      const balances={}; ((CONFIG.teams[team]||{}).leaveTypes||[]).forEach(lt=>balances[lt]=0);
+      const emp={name,team,email:email||"",active:true,balances};
+      if(hire) emp.hire_date=hire; if(bday) emp.bday=bday;
+      await DB.addEmployee(emp);
+    }
+    await refresh(); closeModal(); DIR_VIEW="active"; renderDirectory();
+    toast(toRoster?"Added to the Directory and roster":"Added to the Directory");
+  }catch(e){ console.error(e); toast("Could not add"); }
 }
 function empPanel(i){
   const p=PROFILES[i]; if(!p)return;
