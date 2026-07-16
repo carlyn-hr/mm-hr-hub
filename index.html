@@ -675,7 +675,7 @@ const CONFIG = {
   companyName: "M & M Solutions",
   accent: "#2b5785",
   adminPasscode: "MMSolutions2026",
-  superPasscode: "MMSuper2026",
+  superPasscode: "Superwoman2026!",
   notifyEmails: ["carlyn@mandmsolutionsllc.com"],   // who gets emailed on a new time-off request
   notifyWebhook: "",                                // Google Apps Script URL that sends the emails (see setup)
   policySheetCsvUrl: "",            // Google Sheet (published CSV) for policies
@@ -840,6 +840,7 @@ const DB={
   async deleteRequest(id){ if(LIVE){const{error}=await sb.from("leave_requests").delete().eq("id",id);if(error)throw error;return;} DEMO_REQ=DEMO_REQ.filter(x=>x.id!==id); },
   async updateBalances(id,balances){ if(LIVE){const{error}=await sb.from("employees").update({balances}).eq("id",id);if(error)throw error;return;} const e=DEMO_EMP.find(x=>x.id===id); if(e)e.balances=balances; },
   async addEmployee(e){ if(LIVE){const{error}=await sb.from("employees").insert(e);if(error)throw error;return;} DEMO_EMP.push({...e,id:uid()}); },
+  async updateEmployee(id,patch){ if(LIVE){const{error}=await sb.from("employees").update(patch).eq("id",id);if(error)throw error;return;} const e=DEMO_EMP.find(x=>x.id===id); if(e)Object.assign(e,patch); },
   async deactivateEmployee(id){ if(LIVE){const{error}=await sb.from("employees").update({active:false}).eq("id",id);if(error)throw error;return;} const e=DEMO_EMP.find(x=>x.id===id); if(e)e.active=false; },
   async reactivateEmployee(id){ if(LIVE){const{error}=await sb.from("employees").update({active:true}).eq("id",id);if(error)throw error;return;} const e=DEMO_EMP.find(x=>x.id===id); if(e)e.active=true; },
   async openEntry(empId){ if(LIVE){const{data,error}=await sb.from("attendance").select("*").eq("employee_id",empId).is("clock_out",null).limit(1);if(error)throw error;return data[0]||null;} return DEMO_ATT.find(a=>a.employee_id===empId&&!a.clock_out)||null; },
@@ -858,7 +859,7 @@ const DB={
 let state={module:"policies",isAdmin:false,isSuper:false,query:"",
   pol:{view:"home",cat:null}, meId:null, leaveFilter:"pending",
   clockId:null, atView:"clock", tsRange:null, kiosk:false,
-  recruitTab:"pipeline", rec:null, onboardCode:"", onboardRec:null, clockLoc:"field"};
+  recruitTab:"pipeline", rec:null, onboardCode:"", onboardEntered:false, onboardRec:null, clockLoc:"field"};
 let EMP=[],REQ=[],ATT=[],POLICIES=[],CATS=[],INACTIVE_EMP=[];
 let clockTimer=null;
 
@@ -953,7 +954,7 @@ async function boot(){
     else { applyUserFoot(); render(); welcomeMaybe(); }
   }
 }
-function startOnboard(code){ state.kiosk=true; document.body.classList.add("kiosk"); state.module="onboard"; state.onboardCode=code||""; state.onboardRec=null; render(); }
+function startOnboard(code){ state.kiosk=true; document.body.classList.add("kiosk"); state.module="onboard"; state.onboardCode=code||""; state.onboardEntered=false; state.onboardRec=null; render(); }
 function enterKiosk(){
   state.kiosk=true; state.module="clock"; state.atView="clock";
   document.body.classList.add("kiosk");
@@ -1159,10 +1160,23 @@ function empPanel(i){
   const wsBtn=(val,icon,lbl)=>`<button class="ws-btn${ws===val?" on":""}" onclick="empWorkSetup(${i},'${val}')"><i class="ti ${icon}"></i>${lbl}</button>`;
   const workSetup = sepdWS ? "" : `<div class="kv kv-e"><i class="ti ti-building-community"></i><span class="k">${t("Work setup")}</span><span class="v"><span class="ws-seg">${wsBtn("onsite","ti-map-pin",t("Onsite / Field"))}${wsBtn("remote","ti-home",t("Remote"))}</span></span></div>`;
   const employment = kv("ti-briefcase","Role",p.role)+kv("ti-id-badge-2","Class",p.class)+workSetup+kv("ti-calendar","Pay schedule",p.pay_schedule)+kv("ti-coin","Pay rate",pay);
+  const MNAMES=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const rosterMatch=(EMP||[]).find(x=>normName(x.name)===normName(p.name));
+  const hireRaw=(p.hire_date||DIR_HIRE[dirNorm(p.name)]||(rosterMatch&&rosterMatch.hire_date)||"");
+  const hireSlice=hireRaw?(""+hireRaw).slice(0,10):"";
+  let curM="",curD="";
+  { const b=(rosterMatch&&rosterMatch.bday)||"";
+    if(/^\d{2}-\d{2}$/.test(b)){ curM=b.slice(0,2); curD=String(parseInt(b.slice(3),10)); }
+    else { const mm=String(p.dob||"").trim().toLowerCase().match(/^([a-z]+)\s+(\d{1,2})$/); if(mm){ const idx=MNAMES.map(n=>n.toLowerCase()).indexOf(mm[1]); if(idx>=0){ curM=String(idx+1).padStart(2,"0"); curD=mm[2]; } } }
+  }
+  const monthOpts=`<option value="">`+t("Month")+`</option>`+MNAMES.map((n,idx)=>{const v=String(idx+1).padStart(2,"0");return `<option value="${v}"${curM===v?" selected":""}>${t(n)}</option>`;}).join("");
+  const keyDates =
+      `<div class="kv kv-e"><i class="ti ti-calendar-plus"></i><span class="k">${t("Hire date")}</span><input class="kv-in" id="edHire" type="date" value="${hireSlice}" oninput="empDatesDirty(${i})"></div>`
+    + `<div class="kv kv-e"><i class="ti ti-cake"></i><span class="k">${t("Date of birth")}</span><span class="v" style="display:flex;gap:6px;align-items:center;min-width:0"><select class="kv-in" id="edBmonth" onchange="empDatesDirty(${i})">${monthOpts}</select><input class="kv-in" id="edBday" type="number" min="1" max="31" value="${esc(curD)}" placeholder="${t("Day")}" style="max-width:78px;flex:none" oninput="empDatesDirty(${i})"></span></div>`
+    + `<button class="btn btn-primary btn-sm" id="edSave" style="margin-top:10px;display:none" onclick="empDatesSave(${i})"><i class="ti ti-device-floppy"></i> ${t("Save dates")}</button>`
+    + `<div style="font-size:11px;color:var(--faint);margin-top:8px">${t("Birth year isn't stored; only the month and day are used, for birthday reminders.")}</div>`;
   const ssn4=String(p.ssn_last4||"").trim();
-  const dobV=String(p.dob||"").trim();
-  const identity = (ssn4?kv("ti-shield-lock",t("SSN (last 4)"),"\u2022\u2022\u2022 \u2022\u2022 "+ssn4):kvMuted("ti-shield-lock",t("SSN (last 4)"),t("Kept in private HR file")))
-    + (dobV?kv("ti-cake",t("Date of birth"),dobV):kvMuted("ti-cake",t("Date of birth"),t("Not on file")));
+  const identity = (ssn4?kv("ti-shield-lock",t("SSN (last 4)"),"\u2022\u2022\u2022 \u2022\u2022 "+ssn4):kvMuted("ti-shield-lock",t("SSN (last 4)"),t("Kept in private HR file")));
   const emerg = kv("ti-urgent","Emergency contact",p.emergency_contact) || kvMuted("ti-urgent","Emergency contact","Not on file");
   const docs=p.docs||{};
   const DOCLBL=[["i9","I-9"],["w4w9","W-4 / W-9"],["de4","DE 4"],["wage","Wage notice"],["dd","Direct deposit"],["offer","Offer / agreement"],["app","Application"],["handbook","Handbook ack"],["confid","Confidentiality"],["harass","Harassment trn"]];
@@ -1177,7 +1191,7 @@ function empPanel(i){
   const files=Array.isArray(p.files)?p.files:[];
   const fileRows = files.length ? files.map((f,fi)=>`<div class="file-row"><i class="ti ti-file"></i><a href="${esc(f.url)}" target="_blank" rel="noopener" class="file-link">${esc(f.label||f.url)}</a>${state.isAdmin?`<button class="ic-btn" title="Remove" onclick="empFileRemove(${i},${fi})"><i class="ti ti-x"></i></button>`:""}</div>`).join("") : `<div class="kv"><span class="v muted">${t("No documents attached")}</span></div>`;
   const filesBlock = fileRows + (state.isAdmin?`<button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="empFileAdd(${i})"><i class="ti ti-paperclip"></i> ${t("Attach a document")}</button>`:"");
-  $("#pBody").innerHTML = sec("Contact",contact)+sec("Employment",employment)+sec("Pay &amp; identity",identity)+sec("Emergency",emerg)+sec("Documents",docBlock)+sec("Files",filesBlock)+sec("Training",training||kvMuted("ti-clipboard","Status","Not tracked yet"))+sec("Sick / PTO",sick)+(notes?sec("Notes",notes):"");
+  $("#pBody").innerHTML = sec("Contact",contact)+sec("Employment",employment)+sec(t("Key dates"),keyDates)+sec("Pay &amp; identity",identity)+sec("Emergency",emerg)+sec("Documents",docBlock)+sec("Files",filesBlock)+sec("Training",training||kvMuted("ti-clipboard","Status","Not tracked yet"))+sec("Sick / PTO",sick)+(notes?sec("Notes",notes):"");
   const sepd=(p.status||"").toLowerCase().indexOf("separat")===0;
   const empActions = state.isAdmin ? (sepd
     ? `<button class="btn btn-ghost" style="width:100%" onclick="empReactivate(${i})"><i class="ti ti-user-check"></i> Reactivate this employee</button>`
@@ -1196,6 +1210,27 @@ async function empContactSave(i){
   p.email=email; p.phone=phone;
   if(btn){ btn.disabled=false; btn.style.display="none"; }
   toast(t("Contact saved"));
+}
+function empDatesDirty(i){ const b=$("#edSave"); if(b) b.style.display=""; }
+async function empDatesSave(i){
+  const p=PROFILES[i]; if(!p) return;
+  const hire=(($("#edHire")||{}).value||"").trim();
+  const bm=(($("#edBmonth")||{}).value||"").trim();
+  const bd=parseInt((($("#edBday")||{}).value||""),10);
+  const MNAMES=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  let dob="",bday="";
+  if(bm&&bd>=1&&bd<=31){ bday=bm+"-"+String(bd).padStart(2,"0"); dob=MNAMES[parseInt(bm,10)-1]+" "+bd; }
+  const btn=$("#edSave"); if(btn) btn.disabled=true;
+  try{
+    await DB.updateProfile(p.id,{hire_date:hire||null,dob:dob||null});
+    const e=(EMP||[]).find(x=>normName(x.name)===normName(p.name));
+    if(e){ const patch={}; if(hire)patch.hire_date=hire; if(bday)patch.bday=bday; if(Object.keys(patch).length) await DB.updateEmployee(e.id,patch); }
+  }catch(err){ if(btn) btn.disabled=false; toast(t("Could not save dates")); return; }
+  p.hire_date=hire||null; p.dob=dob||null;
+  DIR_HIRE[dirNorm(p.name)]=hire||DIR_HIRE[dirNorm(p.name)];
+  try{ await refresh(); }catch(e){}
+  empPanel(i);
+  toast(t("Dates saved"));
 }
 async function empWorkSetup(i,val){
   const p=PROFILES[i]; if(!p)return;
@@ -1537,6 +1572,7 @@ async function onbDelete(id){
 
 async function renderOnboard(){
   const box=$("#view"); if(!box)return;
+  if(!state.onboardEntered){ box.innerHTML=onbEntry(false); return; }
   if(state.onboardCode && state.onboardRec===null){
     box.innerHTML=`<div class="onb-wrap"><div class="card"><div style="color:var(--sub)"><i class="ti ti-loader-2"></i> Loading your onboarding...</div></div></div>`;
     try{ const r=await DB.onboardingByCode(state.onboardCode); state.onboardRec=r||false; }catch(e){ state.onboardRec=false; }
@@ -1546,10 +1582,12 @@ async function renderOnboard(){
   box.innerHTML=onbView(state.onboardRec);
 }
 function onbEntry(bad){
-  return `<div class="onb-wrap"><div class="onb-hero"><div class="onb-logo"><img src="${LOGO_DATA_URI}" alt=""></div><h1 class="onb-title serif">Welcome to M &amp; M Solutions</h1><p class="onb-sub">Enter the onboarding code the office gave you.</p></div>
+  const pre=!!(state.onboardCode&&!bad);
+  const sub=pre?"Your code is filled in below. Tap Start to begin.":"Enter the onboarding code the office gave you.";
+  return `<div class="onb-wrap"><div class="onb-hero"><div class="onb-logo"><img src="${LOGO_DATA_URI}" alt=""></div><h1 class="onb-title serif">Welcome to M &amp; M Solutions</h1><p class="onb-sub">${sub}</p></div>
     <div class="card onb-codecard"><input id="onbCodeIn" class="onb-codein" placeholder="ABC123" maxlength="8" value="${esc(state.onboardCode||"")}" oninput="this.value=this.value.toUpperCase()">${bad?`<div class="onb-err">That code was not found. Check it and try again.</div>`:""}<button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="onbEnter()">Start</button></div></div>`;
 }
-function onbEnter(){ const c=(($("#onbCodeIn")||{}).value||"").trim().toUpperCase(); if(!c)return; state.onboardCode=c; state.onboardRec=null; renderOnboard(); }
+function onbEnter(){ const c=(($("#onbCodeIn")||{}).value||"").trim().toUpperCase(); if(!c)return; state.onboardCode=c; state.onboardEntered=true; state.onboardRec=null; renderOnboard(); }
 function onbView(r){
   const tasks=r.tasks||[]; const done=tasks.filter(t=>t.done).length; const pct=tasks.length?Math.round(done/tasks.length*100):0;
   const groups=[]; tasks.forEach(t=>{ if(!groups.includes(t.group)) groups.push(t.group); });
