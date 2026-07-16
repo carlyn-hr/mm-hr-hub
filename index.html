@@ -967,10 +967,12 @@ function enterKiosk(){
 function roleName(){ return state.isOwner?"Owner":(state.isSuper?"Super admin":(state.isAdmin?"Admin":"Staff")); }
 function applyRole(){
   $("#roleLabel").textContent=roleName();
-  const tk=$("#navTimekeeping"); if(tk) tk.style.display=state.isAdmin?"flex":"none";
-  const dr=$("#navDirectory"); if(dr) dr.style.display=state.isAdmin?"flex":"none";
-  const rc=$("#navRecruit"); if(rc) rc.style.display=state.isAdmin?"flex":"none";
-  ["navDashboard","navToolkit","navSop","navInbox"].forEach(id=>{const n=$("#"+id);if(n)n.style.display=state.isAdmin?"flex":"none";});
+  const tk=$("#navTimekeeping"); if(tk) tk.style.display=state.isSuper?"flex":"none";
+  const dr=$("#navDirectory"); if(dr) dr.style.display=state.isSuper?"flex":"none";
+  const rc=$("#navRecruit"); if(rc) rc.style.display=state.isSuper?"flex":"none";
+  const ib=$("#navInbox"); if(ib) ib.style.display=state.isSuper?"flex":"none";
+  ["navDashboard","navToolkit"].forEach(id=>{const n=$("#"+id);if(n)n.style.display=state.isAdmin?"flex":"none";});
+  const sp=$("#navSop"); if(sp) sp.style.display="flex";
   $("#adminToggleLabel").textContent=state.isAdmin?"Sign out":"Admin sign in";
   $("#adminToggle").querySelector("i").className=state.isAdmin?"ti ti-lock-open":"ti ti-lock";
 }
@@ -980,7 +982,7 @@ function goModule(m){
   $("#searchWrap").style.display = m==="policies" ? "flex" : "none";
   if(m==="policies"){ $("#searchInput").value=""; }
   $("#roleLabel").textContent = roleName();
-  if(m==="attendance"){ state.atView = state.isAdmin ? "admin" : "clock"; }
+  if(m==="attendance"){ state.atView = state.isSuper ? "admin" : "clock"; }
   render();
 }
 function goHome(){ state.pol.view="home"; state.query=""; const si=$("#searchInput"); if(si)si.value=""; goModule("policies"); }
@@ -998,7 +1000,7 @@ function tryAdmin(){
   else if(v===CONFIG.superPasscode){ state.isAdmin=true; state.isSuper=true; state.isOwner=false; }
   else if(v===CONFIG.adminPasscode){ state.isAdmin=true; state.isSuper=false; state.isOwner=false; }
   else { const g=$("#gatePass"); g.style.borderColor="var(--bad)"; g.value=""; g.placeholder="Wrong passcode"; return; }
-  applyRole(); closeModal(); if(state.module==="attendance")state.atView="admin"; render();
+  applyRole(); closeModal(); if(state.module==="attendance")state.atView=state.isSuper?"admin":"clock"; render();
 }
 function openNav(){$("#sidebar").classList.add("open");$("#navScrim").classList.add("open");}
 function closeNav(){$("#sidebar").classList.remove("open");$("#navScrim").classList.remove("open");}
@@ -2172,20 +2174,19 @@ function renderToolkit(){
 }
 
 const SOP_ARTICLES=[
-  {t:"Signing in and roles",a:"All",b:"<p>The Hub has three levels. Staff see Policies, Clock in and out, Time off, HR Forms, Training, and Onboarding, with no passcode. Admin adds Timekeeping, Directory, Recruitment, the HR Dashboard, this SOP Library, and the Manager Toolkit. Super admin can also add and remove people.</p><p>Sign in from the lock button at the bottom of the sidebar and enter the passcode. The same button signs you out.</p>"},
+  {t:"Signing in and roles",a:"All",b:"<p>The Hub has four levels. Everyone (staff) sees Policies, Clock in and out, Time off, HR Forms, Training, Onboarding, and this SOP Library, with no passcode. Admin adds the HR Dashboard and the Manager Toolkit. Super admin adds Timekeeping, Directory, Recruitment, and the HR Inbox, and can change employee records. The owner adds Accounts, and is the only level that manages who can sign in.</p><p>Admin, super admin, and owner sign in from the lock button at the bottom of the sidebar and enter the passcode. The same button signs you out. Staff open the Hub with their own email or setup code, then a passcode.</p>"},
   {t:"For staff: the basics",a:"Staff",b:"<p>Clock in and out from the Clock tile. Pick Onsite / Field or Remote, choose your name, and tap Clock in. Field clock-ins record your location so the office can confirm you are on site.</p><p>Request time off from the Time off tile. Pick the dates and the type, and the office approves it. Read your policies from the Policies tile and open forms and the handbook from HR Forms.</p>"},
   {t:"Approving time off and balances",a:"Admin",b:"<p>Open Time off and switch to Manager view. Pending requests show who, what type, the dates, and the balance impact. Approve or Decline. Approving a sick request deducts the hours (8 per day) from that person's bank. You can Revoke an approval to add the hours back.</p><p>To set a balance directly, open People, then Edit next to a person, and change the sick hours.</p>"},
   {t:"Managing sick-leave balances",a:"Admin",b:"<p>Sick leave is frontloaded at 40 hours (5 days) a year and tracked in hours. New hires start at 0 and become eligible on their 90th day. The HR Dashboard flags anyone past 90 days who still needs their 40 set. Set it in People, then Edit.</p><p>Vacation and PTO are not tracked, since California does not require them.</p>"},
   {t:"Using the Directory",a:"Admin",b:"<p>Directory lists the whole crew. Tap a name to open their card with contact, employment, pay, documents, training, and sick balance. SSN and date of birth are kept out on purpose. You can attach documents to a card: see the SOP on attaching documents.</p>"},
-  {t:"Hub accounts and sign-in",a:"Admin",b:"<p>Everyone opens the Hub with their own account. First time, they enter the email the office has on file, or a one-time setup code, then pick a 4 to 8 digit passcode and can turn on fingerprint or face unlock for their phone. After that, the Hub remembers them on that device for 30 days.</p><p>Manage it all from Accounts on the admin home. Create an account for anyone (email optional), and the Hub gives you a one-time setup code to hand over, so new hires never need a code edit. Use the bulk button to create accounts with codes for everyone in the directory at once and download the code list. Reset a passcode when someone forgets it, or disable an account when someone leaves. Passcodes are stored hashed, never in plain text.</p>"},
+  {t:"Hub accounts and sign-in",a:"Owner",b:"<p>Everyone opens the Hub with their own account. First time, they enter the email the office has on file, or a one-time setup code, then pick a 4 to 8 digit passcode and can turn on fingerprint or face unlock for their phone. After that, the Hub remembers them on that device for 30 days.</p><p>Accounts is managed by the owner. Open it from the owner's home screen. Create an account for anyone (email optional), and the Hub gives you a one-time setup code to hand over, so new hires never need a code edit. Use the bulk button to create accounts with codes for everyone in the directory at once and download the code list. Reset a passcode when someone forgets it, or disable an account when someone leaves. Passcodes are stored hashed, never in plain text.</p>"},
   {t:"Recruitment and onboarding",a:"Admin",b:"<p>Recruitment has three tabs. Pipeline moves candidates from Applied to Hired. Job postings hold your open roles. Onboarding tracks new hires. When you move a candidate to Hired, pick the checklist that fits: US crew (California W-2 paperwork, handbook, and training) or Remote contractor (W-8BEN, contractor agreement, and setup). The Hub makes a private six-character code. Copy the link and send it to the new hire, who works through their checklist at their own pace.</p><p>Acknowledgment steps ask the new hire to type their full legal name, which is stored with a timestamp as their signature. Tap any onboarding card to open its panel, where you can review progress and signatures, copy the link, download a signed acknowledgment receipt, or delete the onboarding.</p><p>The handbook step opens a policy-by-policy review. The new hire taps each policy title to expand and read it, then acknowledges it, and the Hub records when each policy was opened and acknowledged. The overall handbook signature unlocks only after every policy is acknowledged, and the receipt download lists the evidence per policy.</p>"},
   {t:"Attaching a document to an employee",a:"Admin",b:"<p>Upload the file to Google Drive first and set its sharing so the office can open it. Copy the share link. In the Directory, open the person's card, go to Files, tap Add file, paste the link, give it a label like W-4 or ID, and save. The link shows on their card. Nothing is stored in the Hub itself, so keep the Drive access controlled.</p>"},
-  {t:"For super admin: people and passcodes",a:"Super admin",b:"<p>Super admin can add and remove people in Time off, then People. Removing is a soft delete: the person leaves the active lists but the record stays.</p><p>Change the admin and super-admin passcodes before launch. They are set in the Hub file, so send the new codes to have them baked in.</p>"}
+  {t:"For super admin: people and passcodes",a:"Super admin",b:"<p>Super admin can change employee records: add and edit people in the Directory, set hire dates, birthdays, and work setup, attach documents, and offboard. You can also add and remove people in Time off, then People. Removing is a soft delete: the person leaves the active lists but the record stays.</p><p>There are three passcodes: admin for day to day, super admin for employee records, and owner for Accounts and major changes. They are set in the Hub file, so send the new codes to have them baked in. Only the owner sees Accounts.</p>"},
 ];
 function renderSOP(){
-  if(!state.isAdmin){ $("#view").innerHTML=pageHead("SOP Library","SOP Library","")+`<div class="empty"><i class="ti ti-lock"></i><p>${t("Sign in as admin to open the SOP Library.")}</p></div>`; return; }
   const rows=SOP_ARTICLES.map((s,i)=>`<button class="sop-row" onclick="sopPanel(${i})"><span class="sop-ic"><i class="ti ti-file-text"></i></span><span class="dir-main"><span class="dir-name">${esc(s.t)}</span><span class="dir-sub">${esc(s.a)}</span></span><i class="ti ti-chevron-right" style="color:var(--faint)"></i></button>`).join("");
-  $("#view").innerHTML=pageHead(t("Admin"),t("SOP Library"),t("How to run the Hub, for admin, super admin, and staff."))+`<div class="sop-list">${rows}</div>`;
+  $("#view").innerHTML=pageHead(t("SOP Library"),t("SOP Library"),t("How to run the Hub, for staff, admin, super admin, and owner."))+`<div class="sop-list">${rows}</div>`;
 }
 function sopPanel(i){
   const s=SOP_ARTICLES[i]; if(!s)return;
@@ -2365,22 +2366,24 @@ function renderPolicies(){
   polBind();
 }
 function polHome(v){
-  const adminTiles = state.isAdmin ? `
+  const adminTiles =
+    (state.isAdmin ? `
     <button class="action-card" onclick="goModule('dashboard')"><div class="ai">\u{1F4CA}</div><div><h3>${t('HR Dashboard')}</h3><p>${t('Headcount and pending actions')}</p></div></button>
+    <button class="action-card" onclick="goModule('toolkit')"><div class="ai">\u{1F9F0}</div><div><h3>${t('Manager Toolkit')}</h3><p>${t('Tools and how-tos')}</p></div></button>` : "")
+  + (state.isSuper ? `
     <button class="action-card" onclick="goModule('attendance')"><div class="ai">\u{23F1}\u{FE0F}</div><div><h3>${t('Timekeeping')}</h3><p>${t('Hours and timesheets')}</p></div></button>
     <button class="action-card" onclick="goModule('directory')"><div class="ai">\u{1F465}</div><div><h3>${t('Directory')}</h3><p>${t('Employee records')}</p></div></button>
     <button class="action-card" onclick="goModule('recruit')"><div class="ai">\u{1F4BC}</div><div><h3>${t('Recruitment')}</h3><p>${t('Hiring and onboarding')}</p></div></button>
-    <button class="action-card" onclick="goModule('toolkit')"><div class="ai">\u{1F9F0}</div><div><h3>${t('Manager Toolkit')}</h3><p>${t('Tools and how-tos')}</p></div></button>
-    <button class="action-card" onclick="goModule('sop')"><div class="ai">\u{1F4DA}</div><div><h3>${t('SOP Library')}</h3><p>${t('Guides for the Hub')}</p></div></button>
-    <button class="action-card" onclick="goModule('hrinbox')"><div class="ai">\u{1F4E5}</div><div><h3>${t('HR Inbox')}</h3><p>${t('Forms sent to HR')}</p></div></button>
-    ${state.isOwner?`<button class="action-card" onclick="goModule('accounts')"><div class="ai">\u{1F511}</div><div><h3>${t('Accounts')}</h3><p>${t('Hub logins and access')}</p></div></button>`:``}` : "";
+    <button class="action-card" onclick="goModule('hrinbox')"><div class="ai">\u{1F4E5}</div><div><h3>${t('HR Inbox')}</h3><p>${t('Forms sent to HR')}</p></div></button>` : "")
+  + (state.isOwner?`<button class="action-card" onclick="goModule('accounts')"><div class="ai">\u{1F511}</div><div><h3>${t('Accounts')}</h3><p>${t('Hub logins and access')}</p></div></button>`:``);
   const actions=`<div class="section-label">${t('Quick actions')}</div><div class="action-grid">
     <button class="action-card" data-tour="policies" onclick="openPolicies()"><div class="ai">\u{1F4D6}</div><div><h3>${t('Policies')}</h3><p>${t('Read your policies')}</p></div></button>
     <button class="action-card" data-tour="clock" onclick="goModule('clock')"><div class="ai">\u{1F550}</div><div><h3>${t('Clock in / out')}</h3><p>${t('Start or end your shift')}</p></div></button>
     <button class="action-card" data-tour="leave" onclick="goModule('leave')"><div class="ai">\u{1F334}</div><div><h3>${t('Time off')}</h3><p>${t('Request or track leave')}</p></div></button>
     <button class="action-card" data-tour="documents" onclick="goModule('documents')"><div class="ai">\u{1F4C4}</div><div><h3>${t('HR Forms')}</h3><p>${t('Handbook and forms')}</p></div></button>
     <button class="action-card" data-tour="training" onclick="goModule('training')"><div class="ai">\u{1F393}</div><div><h3>${t('Training')}</h3><p>${t('Required training')}</p></div></button>
-    <button class="action-card" data-tour="onboardtile" onclick="goModule('onboard')"><div class="ai">\u{1F680}</div><div><h3>${t('Onboarding')}</h3><p>${t('New hire steps')}</p></div></button>${adminTiles}
+    <button class="action-card" data-tour="onboardtile" onclick="goModule('onboard')"><div class="ai">\u{1F680}</div><div><h3>${t('Onboarding')}</h3><p>${t('New hire steps')}</p></div></button>
+    <button class="action-card" onclick="goModule('sop')"><div class="ai">\u{1F4DA}</div><div><h3>${t('SOP Library')}</h3><p>${t('Guides for the Hub')}</p></div></button>${adminTiles}
   </div>`;
   v.innerHTML=pageHead(CONFIG.companyName+" HR Hub",t("Welcome")+(typeof SESSION!=="undefined"&&SESSION&&SESSION.name?", "+esc(SESSION.name.split(" ")[0]):""),t("Everything in one place. Pick a section to begin."))+celebInline()+actions+tourLink();
 }
