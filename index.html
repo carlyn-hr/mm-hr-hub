@@ -453,6 +453,12 @@ body.authgate .sidebar,body.authgate .topbar{display:none}
 .doc-chip.off{background:transparent;color:var(--faint);border-color:var(--border)}
 .doc-chip i{font-size:12px}
 .emp-note{font-size:13px;color:var(--sub);line-height:1.5;background:var(--gold-soft);border-radius:8px;padding:10px 12px}
+.ws-seg{display:inline-flex;gap:2px;background:var(--accent-soft);border-radius:9px;padding:2px}
+.ws-btn{display:inline-flex;align-items:center;gap:5px;border:none;background:transparent;color:var(--sub);font-size:12px;font-weight:700;padding:5px 10px;border-radius:7px;cursor:pointer;transition:background .12s,color .12s}
+.ws-btn i{font-size:14px}
+.ws-btn.on{background:var(--surface);color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.dir-ws{display:inline-flex;align-items:center;gap:3px;margin-left:6px;color:var(--accent);font-weight:600}
+.dir-ws i{font-size:12px}
 /* Recruitment */
 .rec-tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border)}
 .rec-tab{display:inline-flex;align-items:center;gap:6px;background:none;border:none;border-bottom:2px solid transparent;padding:9px 13px;font-size:13.5px;font-weight:600;color:var(--sub);cursor:pointer}
@@ -879,7 +885,7 @@ const ES={"Your sign-in isn't linked to anyone on the roster yet. Ask the office
 };
 Object.assign(ES,{
 "Email":"Correo","Phone":"Tel\u00e9fono","Address":"Direcci\u00f3n",
-"Save contact":"Guardar contacto","Contact saved":"Contacto guardado","Could not save contact":"No se pudo guardar el contacto",
+"Save contact":"Guardar contacto","Contact saved":"Contacto guardado","Could not save contact":"No se pudo guardar el contacto","Work setup":"Modalidad de trabajo","Work setup saved":"Modalidad de trabajo guardada","Could not save work setup":"No se pudo guardar la modalidad",
 "SSN (last 4)":"SSN (\u00faltimos 4)","Date of birth":"Fecha de nacimiento",
 "Kept in private HR file":"Se guarda en el archivo privado de RRHH","Not on file":"No consta en archivo",
 "Employee directory":"Directorio de empleados","Tap a name for the full card.":"Toque un nombre para ver la ficha completa.",
@@ -1040,7 +1046,7 @@ function dirFilter(qstr){
       : `<span class="dir-chip" style="color:${col};border-color:${col}">${esc(st||"-")}</span>`;
     return `<button class="dir-row" onclick="empPanel(${idx})">
       <span class="dir-ava">${esc(dirInitials(p.name))}</span>
-      <span class="dir-main"><span class="dir-name">${esc(p.name||"")}</span><span class="dir-sub">${esc(p.role||"Crew")}${p.class?" · "+esc(p.class):""}</span></span>
+      <span class="dir-main"><span class="dir-name">${esc(p.name||"")}</span><span class="dir-sub">${esc(p.role||"Crew")}${p.class?" · "+esc(p.class):""}${(p.work_setup&&!dirIsSep(p))?` <span class="dir-ws"><i class="ti ${String(p.work_setup).toLowerCase()==="remote"?"ti-home":"ti-map-pin"}"></i>${String(p.work_setup).toLowerCase()==="remote"?t("Remote"):t("Onsite / Field")}</span>`:""}</span></span>
       <span class="dir-right">${chip}<i class="ti ti-chevron-right" style="color:var(--faint)"></i></span>
     </button>`;
   }).join("");
@@ -1061,7 +1067,11 @@ function empPanel(i){
     + kv("ti-map-pin",t("Address"),p.address)
     + `<button class="btn btn-primary btn-sm" id="ecSave" style="margin-top:10px;display:none" onclick="empContactSave(${i})"><i class="ti ti-device-floppy"></i> ${t("Save contact")}</button>`;
   const pay = (p.pay_rate!==null&&p.pay_rate!==undefined&&String(p.pay_rate).trim()!=="")?("$"+p.pay_rate+" / hr"):"";
-  const employment = kv("ti-briefcase","Role",p.role)+kv("ti-id-badge-2","Class",p.class)+kv("ti-calendar","Pay schedule",p.pay_schedule)+kv("ti-coin","Pay rate",pay);
+  const sepdWS=(p.status||"").toLowerCase().indexOf("separat")===0;
+  const ws=(p.work_setup||"").toLowerCase();
+  const wsBtn=(val,icon,lbl)=>`<button class="ws-btn${ws===val?" on":""}" onclick="empWorkSetup(${i},'${val}')"><i class="ti ${icon}"></i>${lbl}</button>`;
+  const workSetup = sepdWS ? "" : `<div class="kv kv-e"><i class="ti ti-building-community"></i><span class="k">${t("Work setup")}</span><span class="v"><span class="ws-seg">${wsBtn("onsite","ti-map-pin",t("Onsite / Field"))}${wsBtn("remote","ti-home",t("Remote"))}</span></span></div>`;
+  const employment = kv("ti-briefcase","Role",p.role)+kv("ti-id-badge-2","Class",p.class)+workSetup+kv("ti-calendar","Pay schedule",p.pay_schedule)+kv("ti-coin","Pay rate",pay);
   const ssn4=String(p.ssn_last4||"").trim();
   const dobV=String(p.dob||"").trim();
   const identity = (ssn4?kv("ti-shield-lock",t("SSN (last 4)"),"\u2022\u2022\u2022 \u2022\u2022 "+ssn4):kvMuted("ti-shield-lock",t("SSN (last 4)"),t("Kept in private HR file")))
@@ -1099,6 +1109,16 @@ async function empContactSave(i){
   p.email=email; p.phone=phone;
   if(btn){ btn.disabled=false; btn.style.display="none"; }
   toast(t("Contact saved"));
+}
+async function empWorkSetup(i,val){
+  const p=PROFILES[i]; if(!p)return;
+  const prev=p.work_setup;
+  if((prev||"").toLowerCase()===val) return;
+  p.work_setup=val;
+  empPanel(i);
+  try{ await DB.updateProfile(p.id,{work_setup:val}); toast(t("Work setup saved")); }
+  catch(e){ console.error(e); p.work_setup=prev; empPanel(i); toast(t("Could not save work setup")); }
+  dirFilter((($("#dirQ")||{}).value)||"");
 }
 /* Offboarding: labels the Directory profile as Separated and deactivates the matching
    rows in the employees table, which removes the person from Clock in / out, Time off,
