@@ -675,7 +675,9 @@ const CONFIG = {
   companyName: "M & M Solutions",
   accent: "#2b5785",
   adminPasscode: "MMSolutions2026",
-  superPasscode: "Superwoman2026!",
+  superPasscode: "MMRecords2026",
+  ownerPasscode: "Superwoman2026!",
+  ownerEmail: "carlyncastaneda@gmail.com",
   notifyEmails: ["carlyn@mandmsolutionsllc.com"],   // who gets emailed on a new time-off request
   notifyWebhook: "",                                // Google Apps Script URL that sends the emails (see setup)
   policySheetCsvUrl: "",            // Google Sheet (published CSV) for policies
@@ -856,7 +858,7 @@ const DB={
 };
 
 /* ============================================================ STATE ============================================================ */
-let state={module:"policies",isAdmin:false,isSuper:false,query:"",
+let state={module:"policies",isAdmin:false,isSuper:false,isOwner:false,query:"",
   pol:{view:"home",cat:null}, meId:null, leaveFilter:"pending",
   clockId:null, atView:"clock", tsRange:null, kiosk:false,
   recruitTab:"pipeline", rec:null, onboardCode:"", onboardEntered:false, onboardRec:null, clockLoc:"field"};
@@ -962,7 +964,7 @@ function enterKiosk(){
 }
 
 /* ============================================================ NAV / SHELL ============================================================ */
-function roleName(){ return state.isSuper?"Super admin":(state.isAdmin?"Admin":"Staff"); }
+function roleName(){ return state.isOwner?"Owner":(state.isSuper?"Super admin":(state.isAdmin?"Admin":"Staff")); }
 function applyRole(){
   $("#roleLabel").textContent=roleName();
   const tk=$("#navTimekeeping"); if(tk) tk.style.display=state.isAdmin?"flex":"none";
@@ -984,16 +986,17 @@ function goModule(m){
 function goHome(){ state.pol.view="home"; state.query=""; const si=$("#searchInput"); if(si)si.value=""; goModule("policies"); }
 function polHomeGo(){ state.pol.view="home"; state.query=""; renderPolicies(); }
 function toggleAdmin(){
-  if(state.isAdmin){ state.isAdmin=false; state.isSuper=false; applyRole(); if(state.module==="attendance"){state.module="clock";state.atView="clock";} render(); return; }
+  if(state.isAdmin){ state.isAdmin=false; state.isSuper=false; state.isOwner=false; applyRole(); if(state.module==="attendance"){state.module="clock";state.atView="clock";} render(); return; }
   $("#modalBox").innerHTML=`<h3>Sign in</h3>
-    <div class="field"><label>Passcode</label><input class="f-input" id="gatePass" type="password" placeholder="Admin or super-admin passcode"/></div>
+    <div class="field"><label>Passcode</label><input class="f-input" id="gatePass" type="password" placeholder="Admin, super admin, or owner passcode"/></div>
     <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="tryAdmin()">Unlock</button></div>`;
   openModal(); setTimeout(()=>{const g=$("#gatePass");if(g){g.focus();g.addEventListener("keydown",e=>{if(e.key==="Enter")tryAdmin();});}},50);
 }
 function tryAdmin(){
   const v=$("#gatePass").value;
-  if(v===CONFIG.superPasscode){ state.isAdmin=true; state.isSuper=true; }
-  else if(v===CONFIG.adminPasscode){ state.isAdmin=true; state.isSuper=false; }
+  if(v===CONFIG.ownerPasscode){ state.isAdmin=true; state.isSuper=true; state.isOwner=true; }
+  else if(v===CONFIG.superPasscode){ state.isAdmin=true; state.isSuper=true; state.isOwner=false; }
+  else if(v===CONFIG.adminPasscode){ state.isAdmin=true; state.isSuper=false; state.isOwner=false; }
   else { const g=$("#gatePass"); g.style.borderColor="var(--bad)"; g.value=""; g.placeholder="Wrong passcode"; return; }
   applyRole(); closeModal(); if(state.module==="attendance")state.atView="admin"; render();
 }
@@ -1149,16 +1152,22 @@ function empPanel(i){
   const kv=(icon,k,v)=> (v!==null&&v!==undefined&&String(v).trim()!=="")?`<div class="kv"><i class="ti ${icon}"></i><span class="k">${k}</span><span class="v">${esc(String(v))}</span></div>`:"";
   const kvMuted=(icon,k,txt)=>`<div class="kv"><i class="ti ${icon}"></i><span class="k">${k}</span><span class="v muted">${esc(txt)}</span></div>`;
   const sec=(title,inner)=> inner?`<div class="emp-sec"><div class="emp-sec-h">${title}</div>${inner}</div>`:"";
+  const canEdit=state.isSuper;
   const efield=(icon,k,id,val,ph,type)=>`<div class="kv kv-e"><i class="ti ${icon}"></i><span class="k">${k}</span><input class="kv-in" id="${id}" type="${type||"text"}" value="${esc(val||"")}" placeholder="${esc(ph)}" oninput="empContactDirty(${i})"></div>`;
-  const contact = efield("ti-mail",t("Email"),"ecEmail",p.email,"name@email.com","email")
+  const contact = canEdit ? (efield("ti-mail",t("Email"),"ecEmail",p.email,"name@email.com","email")
     + efield("ti-phone",t("Phone"),"ecPhone",p.phone,"(555) 555-5555","tel")
     + kv("ti-map-pin",t("Address"),p.address)
-    + `<button class="btn btn-primary btn-sm" id="ecSave" style="margin-top:10px;display:none" onclick="empContactSave(${i})"><i class="ti ti-device-floppy"></i> ${t("Save contact")}</button>`;
+    + `<button class="btn btn-primary btn-sm" id="ecSave" style="margin-top:10px;display:none" onclick="empContactSave(${i})"><i class="ti ti-device-floppy"></i> ${t("Save contact")}</button>`)
+    : ((p.email?kv("ti-mail",t("Email"),p.email):kvMuted("ti-mail",t("Email"),t("Not on file")))
+    + (p.phone?kv("ti-phone",t("Phone"),p.phone):kvMuted("ti-phone",t("Phone"),t("Not on file")))
+    + kv("ti-map-pin",t("Address"),p.address));
   const pay = (p.pay_rate!==null&&p.pay_rate!==undefined&&String(p.pay_rate).trim()!=="")?("$"+p.pay_rate+" / hr"):"";
   const sepdWS=(p.status||"").toLowerCase().indexOf("separat")===0;
   const ws=(p.work_setup||"").toLowerCase();
   const wsBtn=(val,icon,lbl)=>`<button class="ws-btn${ws===val?" on":""}" onclick="empWorkSetup(${i},'${val}')"><i class="ti ${icon}"></i>${lbl}</button>`;
-  const workSetup = sepdWS ? "" : `<div class="kv kv-e"><i class="ti ti-building-community"></i><span class="k">${t("Work setup")}</span><span class="v"><span class="ws-seg">${wsBtn("onsite","ti-map-pin",t("Onsite / Field"))}${wsBtn("remote","ti-home",t("Remote"))}</span></span></div>`;
+  const workSetup = sepdWS ? "" : (canEdit
+    ? `<div class="kv kv-e"><i class="ti ti-building-community"></i><span class="k">${t("Work setup")}</span><span class="v"><span class="ws-seg">${wsBtn("onsite","ti-map-pin",t("Onsite / Field"))}${wsBtn("remote","ti-home",t("Remote"))}</span></span></div>`
+    : (ws?kv("ti-building-community",t("Work setup"),ws==="remote"?t("Remote"):t("Onsite / Field")):""));
   const employment = kv("ti-briefcase","Role",p.role)+kv("ti-id-badge-2","Class",p.class)+workSetup+kv("ti-calendar","Pay schedule",p.pay_schedule)+kv("ti-coin","Pay rate",pay);
   const MNAMES=["January","February","March","April","May","June","July","August","September","October","November","December"];
   const rosterMatch=(EMP||[]).find(x=>normName(x.name)===normName(p.name));
@@ -1170,11 +1179,15 @@ function empPanel(i){
     else { const mm=String(p.dob||"").trim().toLowerCase().match(/^([a-z]+)\s+(\d{1,2})$/); if(mm){ const idx=MNAMES.map(n=>n.toLowerCase()).indexOf(mm[1]); if(idx>=0){ curM=String(idx+1).padStart(2,"0"); curD=mm[2]; } } }
   }
   const monthOpts=`<option value="">`+t("Month")+`</option>`+MNAMES.map((n,idx)=>{const v=String(idx+1).padStart(2,"0");return `<option value="${v}"${curM===v?" selected":""}>${t(n)}</option>`;}).join("");
-  const keyDates =
+  const keyDates = canEdit ? (
       `<div class="kv kv-e"><i class="ti ti-calendar-plus"></i><span class="k">${t("Hire date")}</span><input class="kv-in" id="edHire" type="date" value="${hireSlice}" oninput="empDatesDirty(${i})"></div>`
     + `<div class="kv kv-e"><i class="ti ti-cake"></i><span class="k">${t("Date of birth")}</span><span class="v" style="display:flex;gap:6px;align-items:center;min-width:0"><select class="kv-in" id="edBmonth" onchange="empDatesDirty(${i})">${monthOpts}</select><input class="kv-in" id="edBday" type="number" min="1" max="31" value="${esc(curD)}" placeholder="${t("Day")}" style="max-width:78px;flex:none" oninput="empDatesDirty(${i})"></span></div>`
     + `<button class="btn btn-primary btn-sm" id="edSave" style="margin-top:10px;display:none" onclick="empDatesSave(${i})"><i class="ti ti-device-floppy"></i> ${t("Save dates")}</button>`
-    + `<div style="font-size:11px;color:var(--faint);margin-top:8px">${t("Birth year isn't stored; only the month and day are used, for birthday reminders.")}</div>`;
+    + `<div style="font-size:11px;color:var(--faint);margin-top:8px">${t("Birth year isn't stored; only the month and day are used, for birthday reminders.")}</div>`
+  ) : (
+      (hireSlice?kv("ti-calendar-plus",t("Hire date"),fmtDate(hireSlice)):kvMuted("ti-calendar-plus",t("Hire date"),t("Not on file")))
+    + ((curM&&curD)?kv("ti-cake",t("Date of birth"),MNAMES[parseInt(curM,10)-1]+" "+curD):kvMuted("ti-cake",t("Date of birth"),t("Not on file")))
+  );
   const ssn4=String(p.ssn_last4||"").trim();
   const identity = (ssn4?kv("ti-shield-lock",t("SSN (last 4)"),"\u2022\u2022\u2022 \u2022\u2022 "+ssn4):kvMuted("ti-shield-lock",t("SSN (last 4)"),t("Kept in private HR file")));
   const emerg = kv("ti-urgent","Emergency contact",p.emergency_contact) || kvMuted("ti-urgent","Emergency contact","Not on file");
@@ -1189,11 +1202,11 @@ function empPanel(i){
   const sick=kv("ti-heartbeat","Accrual method",sk.method)+kv("ti-plus","Accrued (hrs)",sk.accrued)+kv("ti-minus","Used (hrs)",sk.used)+kv("ti-wallet","Balance (hrs)",sk.balance);
   const notes=p.notes?`<div class="emp-note">${esc(p.notes)}</div>`:"";
   const files=Array.isArray(p.files)?p.files:[];
-  const fileRows = files.length ? files.map((f,fi)=>`<div class="file-row"><i class="ti ti-file"></i><a href="${esc(f.url)}" target="_blank" rel="noopener" class="file-link">${esc(f.label||f.url)}</a>${state.isAdmin?`<button class="ic-btn" title="Remove" onclick="empFileRemove(${i},${fi})"><i class="ti ti-x"></i></button>`:""}</div>`).join("") : `<div class="kv"><span class="v muted">${t("No documents attached")}</span></div>`;
-  const filesBlock = fileRows + (state.isAdmin?`<button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="empFileAdd(${i})"><i class="ti ti-paperclip"></i> ${t("Attach a document")}</button>`:"");
+  const fileRows = files.length ? files.map((f,fi)=>`<div class="file-row"><i class="ti ti-file"></i><a href="${esc(f.url)}" target="_blank" rel="noopener" class="file-link">${esc(f.label||f.url)}</a>${canEdit?`<button class="ic-btn" title="Remove" onclick="empFileRemove(${i},${fi})"><i class="ti ti-x"></i></button>`:""}</div>`).join("") : `<div class="kv"><span class="v muted">${t("No documents attached")}</span></div>`;
+  const filesBlock = fileRows + (canEdit?`<button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="empFileAdd(${i})"><i class="ti ti-paperclip"></i> ${t("Attach a document")}</button>`:"");
   $("#pBody").innerHTML = sec("Contact",contact)+sec("Employment",employment)+sec(t("Key dates"),keyDates)+sec("Pay &amp; identity",identity)+sec("Emergency",emerg)+sec("Documents",docBlock)+sec("Files",filesBlock)+sec("Training",training||kvMuted("ti-clipboard","Status","Not tracked yet"))+sec("Sick / PTO",sick)+(notes?sec("Notes",notes):"");
   const sepd=(p.status||"").toLowerCase().indexOf("separat")===0;
-  const empActions = state.isAdmin ? (sepd
+  const empActions = canEdit ? (sepd
     ? `<button class="btn btn-ghost" style="width:100%" onclick="empReactivate(${i})"><i class="ti ti-user-check"></i> Reactivate this employee</button>`
     : `<button class="btn btn-ghost" style="width:100%;color:var(--bad)" onclick="empOffboardModal(${i})"><i class="ti ti-user-x"></i> Offboard / mark as separated</button>`) : "";
   $("#pFoot").innerHTML=empActions+`<div class="foot-note" style="margin-top:${empActions?"8px":"0"}">Edit details in Supabase or your master spreadsheet, then refresh.</div>`;
@@ -1671,7 +1684,7 @@ async function onbSyncProfile(id,data){
 let SESSION=null, AUTH={step:"id",acct:null,err:""};
 function sessLoad(){ try{ const s=JSON.parse(localStorage.getItem("mm_session")||"null"); if(s&&s.exp>Date.now())return s; }catch(e){} return null; }
 function sessSave(a){ SESSION={id:a.id,name:a.name,exp:Date.now()+1000*60*60*24*30}; try{localStorage.setItem("mm_session",JSON.stringify(SESSION));}catch(e){} }
-function signOutUser(){ SESSION=null; try{localStorage.removeItem("mm_session");}catch(e){} state.isAdmin=false; state.isSuper=false; applyRole(); closeNav(); authShow(); }
+function signOutUser(){ SESSION=null; try{localStorage.removeItem("mm_session");}catch(e){} state.isAdmin=false; state.isSuper=false; state.isOwner=false; applyRole(); closeNav(); authShow(); }
 function normName(s){ return (s||"").toLowerCase().replace(/\s+/g," ").trim(); }
 function sessEmp(){ if(typeof SESSION==="undefined"||!SESSION)return null; const n=normName(SESSION.name); return EMP.find(e=>normName(e.name)===n)||null; }
 function lockedToSelf(){ return !state.isAdmin && !state.kiosk && typeof SESSION!=="undefined" && !!SESSION; }
@@ -1772,6 +1785,7 @@ async function authBio(){
 function authFinish(a){
   sessSave(a);
   try{ DB.updateAccount(a.id,{last_login:new Date().toISOString()}); }catch(e){}
+  if(a&&a.email&&CONFIG.ownerEmail&&a.email.toLowerCase()===CONFIG.ownerEmail.toLowerCase()){ state.isAdmin=true; state.isSuper=true; state.isOwner=true; applyRole(); }
   document.body.classList.remove("authgate");
   applyUserFoot(); goModule("policies"); welcomeMaybe();
 }
@@ -1802,7 +1816,7 @@ async function bioUnlock(){
 /* ============================================================ ACCOUNTS (ADMIN) ============================================================ */
 let ACCTS=[];
 async function renderAccounts(){
-  if(!state.isAdmin){ $("#view").innerHTML=pageHead("Accounts","Accounts","")+`<div class="empty"><i class="ti ti-lock"></i><p>${t("Sign in as admin to manage accounts.")}</p></div>`; return; }
+  if(!state.isOwner){ $("#view").innerHTML=pageHead("Accounts","Accounts","")+`<div class="empty"><i class="ti ti-lock"></i><p>${t("Only the owner can view and manage accounts.")}</p></div>`; return; }
   $("#view").innerHTML=pageHead(t("Admin"),t("Accounts"),"")+`<div class="card"><div style="color:var(--sub);font-size:13.5px"><i class="ti ti-loader-2"></i> ${t("Loading...")}</div></div>`;
   let ok=true;
   try{ ACCTS=await DB.accounts(); }catch(e){ ok=false; }
@@ -2359,7 +2373,7 @@ function polHome(v){
     <button class="action-card" onclick="goModule('toolkit')"><div class="ai">\u{1F9F0}</div><div><h3>${t('Manager Toolkit')}</h3><p>${t('Tools and how-tos')}</p></div></button>
     <button class="action-card" onclick="goModule('sop')"><div class="ai">\u{1F4DA}</div><div><h3>${t('SOP Library')}</h3><p>${t('Guides for the Hub')}</p></div></button>
     <button class="action-card" onclick="goModule('hrinbox')"><div class="ai">\u{1F4E5}</div><div><h3>${t('HR Inbox')}</h3><p>${t('Forms sent to HR')}</p></div></button>
-    <button class="action-card" onclick="goModule('accounts')"><div class="ai">\u{1F511}</div><div><h3>${t('Accounts')}</h3><p>${t('Hub logins and access')}</p></div></button>` : "";
+    ${state.isOwner?`<button class="action-card" onclick="goModule('accounts')"><div class="ai">\u{1F511}</div><div><h3>${t('Accounts')}</h3><p>${t('Hub logins and access')}</p></div></button>`:``}` : "";
   const actions=`<div class="section-label">${t('Quick actions')}</div><div class="action-grid">
     <button class="action-card" data-tour="policies" onclick="openPolicies()"><div class="ai">\u{1F4D6}</div><div><h3>${t('Policies')}</h3><p>${t('Read your policies')}</p></div></button>
     <button class="action-card" data-tour="clock" onclick="goModule('clock')"><div class="ai">\u{1F550}</div><div><h3>${t('Clock in / out')}</h3><p>${t('Start or end your shift')}</p></div></button>
