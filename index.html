@@ -416,6 +416,12 @@ body.authgate .sidebar,body.authgate .topbar{display:none}
 .dir-search{display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 13px;margin-bottom:14px}
 .dir-search i{color:var(--faint);font-size:17px}
 .dir-search input{flex:1;border:none;outline:none;background:none;font-size:15px;color:var(--text)}
+.dir-tabs{display:flex;gap:6px;margin-bottom:12px}
+.dir-tab{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 8px;font-size:12.5px;font-weight:600;color:var(--sub);cursor:pointer;transition:border-color .12s,background .12s,color .12s}
+.dir-tab:hover{border-color:var(--accent)}
+.dir-tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.dir-tab .dt-n{font-size:11px;font-weight:700;background:rgba(0,0,0,.08);border-radius:999px;padding:1px 7px}
+.dir-tab.on .dt-n{background:rgba(255,255,255,.25);color:#fff}
 .dir-list{display:flex;flex-direction:column;gap:8px}
 .dir-row{display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 13px;cursor:pointer;transition:border-color .12s,background .12s}
 .dir-row:hover{border-color:var(--accent);background:var(--accent-soft)}
@@ -875,7 +881,11 @@ Object.assign(ES,{
 "Email":"Correo","Phone":"Tel\u00e9fono","Address":"Direcci\u00f3n",
 "Save contact":"Guardar contacto","Contact saved":"Contacto guardado","Could not save contact":"No se pudo guardar el contacto",
 "SSN (last 4)":"SSN (\u00faltimos 4)","Date of birth":"Fecha de nacimiento",
-"Kept in private HR file":"Se guarda en el archivo privado de RRHH","Not on file":"No consta en archivo"
+"Kept in private HR file":"Se guarda en el archivo privado de RRHH","Not on file":"No consta en archivo",
+"Employee directory":"Directorio de empleados","Tap a name for the full card.":"Toque un nombre para ver la ficha completa.",
+"Active":"Activos","New this month":"Nuevos este mes","Separated":"Separados","New hire":"Nuevo ingreso",
+"Search name or role":"Buscar nombre o puesto","No matches.":"Sin coincidencias.",
+"No active employees.":"No hay empleados activos.","No new hires this month.":"No hay nuevos ingresos este mes.","No separated employees.":"No hay empleados separados."
 });
 function t(s){ return LANG==="es" ? (ES[s]||s) : s; }
 const CAT_ES={"Company & Employment": "Empresa y empleo", "Wages, Hours & Timekeeping": "Salarios, horas y registro de tiempo", "Time Off & Leaves": "Tiempo libre y permisos", "Workplace Conduct & Safety": "Conducta y seguridad en el trabajo", "Process & Records": "Procesos y registros", "Compliance": "Cumplimiento"};
@@ -980,7 +990,10 @@ function render(){
 function pageHead(eye,title,sub){return `<div class="page-head"><div class="eyebrow">${esc(eye)}</div><h1 class="page-title serif">${esc(title)}</h1>${sub?`<p class="page-sub">${esc(sub)}</p>`:""}</div>`;}
 
 /* ============================================================ DIRECTORY ============================================================ */
-let PROFILES=[];
+let PROFILES=[], DIR_VIEW="active", DIR_HIRE={};
+function dirNorm(s){return (s||"").trim().toLowerCase().replace(/\s+/g," ");}
+function dirIsSep(p){return (p.status||"").toLowerCase().indexOf("separat")===0;}
+function dirIsNew(p){const hd=DIR_HIRE[dirNorm(p.name)];return hd && (""+hd).slice(0,7)===new Date().toISOString().slice(0,7);}
 async function renderDirectory(){
   if(!state.isAdmin){ $("#view").innerHTML = pageHead("Directory","Employee directory","") + `<div class="empty"><i class="ti ti-lock"></i><p>Sign in as admin to view the employee directory.</p></div>`; return; }
   $("#view").innerHTML = pageHead("Directory","Employee directory","") + `<div class="card"><div style="color:var(--sub);font-size:13.5px"><i class="ti ti-loader-2"></i> Loading the crew...</div></div>`;
@@ -989,24 +1002,46 @@ async function renderDirectory(){
     $("#view").innerHTML = pageHead("Directory","Employee directory","") + `<div class="empty"><i class="ti ti-database-off"></i><p>The directory isn't set up yet. Run the masterlist seed in Supabase, then refresh this page.</p></div>`;
     return;
   }
-  $("#view").innerHTML = pageHead("Directory","Employee directory",`${PROFILES.length} on the crew. Tap a name for the full card.`)
-    + `<div class="dir-search"><i class="ti ti-search"></i><input id="dirQ" placeholder="Search name or role" oninput="dirFilter(this.value)"></div>`
+  DIR_HIRE={};
+  [].concat(EMP||[],INACTIVE_EMP||[]).forEach(e=>{ if(e&&e.name&&e.hire_date) DIR_HIRE[dirNorm(e.name)]=e.hire_date; });
+  const nAct=PROFILES.filter(p=>!dirIsSep(p)).length;
+  const nNew=PROFILES.filter(dirIsNew).length;
+  const nSep=PROFILES.filter(dirIsSep).length;
+  const tab=(v,ic,lbl,n)=>`<button class="dir-tab${DIR_VIEW===v?" on":""}" data-v="${v}" onclick="dirTab('${v}')"><i class="ti ${ic}"></i>${lbl}<span class="dt-n">${n}</span></button>`;
+  $("#view").innerHTML = pageHead(t("Directory"),t("Employee directory"),t("Tap a name for the full card."))
+    + `<div class="dir-tabs">`
+      + tab("active","ti-users",t("Active"),nAct)
+      + tab("new","ti-user-plus",t("New this month"),nNew)
+      + tab("separated","ti-user-x",t("Separated"),nSep)
+    + `</div>`
+    + `<div class="dir-search"><i class="ti ti-search"></i><input id="dirQ" placeholder="${t("Search name or role")}" oninput="dirFilter(this.value)"></div>`
     + `<div class="dir-list" id="dirList"></div>`;
   dirFilter("");
 }
+function dirTab(v){ DIR_VIEW=v; document.querySelectorAll(".dir-tab").forEach(b=>b.classList.toggle("on",b.dataset.v===v)); dirFilter((($("#dirQ")||{}).value)||""); }
 function dirInitials(n){return (n||"").split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]||"").join("").toUpperCase();}
 function dirFilter(qstr){
   const q=(qstr||"").toLowerCase().trim();
-  const list=PROFILES.filter(p=>!q || (p.name||"").toLowerCase().includes(q) || (p.role||"").toLowerCase().includes(q));
-  if(!list.length){ $("#dirList").innerHTML=`<div class="empty"><i class="ti ti-user-search"></i><p>No matches.</p></div>`; return; }
+  let base=PROFILES;
+  if(DIR_VIEW==="active") base=PROFILES.filter(p=>!dirIsSep(p));
+  else if(DIR_VIEW==="separated") base=PROFILES.filter(dirIsSep);
+  else if(DIR_VIEW==="new") base=PROFILES.filter(dirIsNew);
+  const list=base.filter(p=>!q || (p.name||"").toLowerCase().includes(q) || (p.role||"").toLowerCase().includes(q));
+  if(!list.length){
+    const msg=q?t("No matches."):DIR_VIEW==="separated"?t("No separated employees."):DIR_VIEW==="new"?t("No new hires this month."):t("No active employees.");
+    $("#dirList").innerHTML=`<div class="empty"><i class="ti ti-user-search"></i><p>${esc(msg)}</p></div>`; return;
+  }
   $("#dirList").innerHTML = list.map(p=>{
     const idx=PROFILES.indexOf(p);
     const st=(p.status||""); const stl=st.toLowerCase();
-    const col = stl.startsWith("active")?"var(--ok)":(st?"var(--warn)":"var(--faint)");
+    const col = stl.indexOf("separat")===0?"var(--warn)":(stl.startsWith("active")||!st?"var(--ok)":"var(--faint)");
+    const chip = DIR_VIEW==="new"
+      ? `<span class="dir-chip" style="color:var(--accent);border-color:var(--accent)">${t("New hire")}</span>`
+      : `<span class="dir-chip" style="color:${col};border-color:${col}">${esc(st||"-")}</span>`;
     return `<button class="dir-row" onclick="empPanel(${idx})">
       <span class="dir-ava">${esc(dirInitials(p.name))}</span>
       <span class="dir-main"><span class="dir-name">${esc(p.name||"")}</span><span class="dir-sub">${esc(p.role||"Crew")}${p.class?" · "+esc(p.class):""}</span></span>
-      <span class="dir-right"><span class="dir-chip" style="color:${col};border-color:${col}">${esc(st||"-")}</span><i class="ti ti-chevron-right" style="color:var(--faint)"></i></span>
+      <span class="dir-right">${chip}<i class="ti ti-chevron-right" style="color:var(--faint)"></i></span>
     </button>`;
   }).join("");
 }
