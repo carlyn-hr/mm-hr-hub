@@ -984,12 +984,18 @@ async function refresh(){
      roster rows are deactivated in the database so the fix sticks. History is kept. */
   try{
     const profs=await DB.profiles();
-    const sepNames=profs.filter(p=>(p.status||"").toLowerCase().indexOf("separat")===0).map(p=>p.name);
-    if(sepNames.length){
-      const gone=EMP.filter(e=>sepNames.some(sn=>namesAlike(sn,e.name)));
+    if(profs.length){
+      const isSep=p=>(p.status||"").toLowerCase().indexOf("separat")===0;
+      const actNames=profs.filter(p=>!isSep(p)).map(p=>p.name);
+      const sepNames=profs.filter(isSep).map(p=>p.name);
+      /* A roster row stays active only when the Directory has a matching Active
+         profile. Separated profiles and roster-only ghosts both come off, and the
+         database rows are deactivated so it sticks. Punch history is kept. */
+      const gone=EMP.filter(e=>!actNames.some(an=>fuzzyNamesAlike(an,e.name)));
       if(gone.length){
         gone.forEach(e=>{ try{ DB.deactivateEmployee(e.id).catch(()=>{}); }catch(err){} });
-        INACTIVE_EMP=INACTIVE_EMP.concat(gone.filter(g=>!INACTIVE_EMP.some(x=>x.id===g.id)));
+        const seps=gone.filter(g=>sepNames.some(sn=>fuzzyNamesAlike(sn,g.name)));
+        INACTIVE_EMP=INACTIVE_EMP.concat(seps.filter(g=>!INACTIVE_EMP.some(x=>x.id===g.id)));
         const goneIds=new Set(gone.map(g=>g.id));
         EMP=EMP.filter(e=>!goneIds.has(e.id));
       }
@@ -1869,6 +1875,26 @@ async function dedupeRoster(){
   }
   /* Merged shells are duplicates, not separations: keep them out of the separated lists. */
   INACTIVE_EMP=(INACTIVE_EMP||[]).filter(x=>!(EMP||[]).some(e=>normName(e.name)===normName(x.name)));
+}
+/* Small edit distance for typo-tolerant surname matching (Morelas vs Morales). */
+function editDist(a,b){
+  const m=a.length,n=b.length; if(!m)return n; if(!n)return m;
+  let prev=Array.from({length:n+1},(_,j)=>j);
+  for(let i=1;i<=m;i++){ const cur=[i];
+    for(let j=1;j<=n;j++){ cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1)); }
+    prev=cur; }
+  return prev[n];
+}
+/* Looser check: same person if at least two of their name words pair up,
+   allowing small misspellings on longer words. */
+function fuzzyNamesAlike(a,b){
+  if(namesAlike(a,b)) return true;
+  const A=normName(a).split(" ").filter(Boolean), B=normName(b).split(" ").filter(Boolean);
+  let pairs=0; const used=new Set();
+  A.forEach(w=>{ for(let j=0;j<B.length;j++){ if(used.has(j))continue;
+    const v=B[j], tol=Math.min(w.length,v.length)>=5?2:(Math.min(w.length,v.length)>=4?1:0);
+    if(editDist(w,v)<=tol){ pairs++; used.add(j); break; } } });
+  return pairs>=2;
 }
 /* Find someone's clock-roster row: exact name first, then a unique close match. */
 function rosterFind(name){
