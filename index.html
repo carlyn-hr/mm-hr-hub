@@ -927,6 +927,7 @@ const DB={
   async clockIn(rec){ if(LIVE){const{error}=await sb.from("attendance").insert(rec);if(error)throw error;return;} DEMO_ATT.push({...rec,id:uid(),hours:null,clock_out:null}); },
   async clockOut(id,clock_out,hours){ if(LIVE){const{error}=await sb.from("attendance").update({clock_out,hours}).eq("id",id);if(error)throw error;return;} const a=DEMO_ATT.find(x=>x.id===id); if(a){a.clock_out=clock_out;a.hours=hours;} },
   async updateEntry(id,patch){ if(LIVE){const{error}=await sb.from("attendance").update(patch).eq("id",id);if(error)throw error;return;} const a=DEMO_ATT.find(x=>x.id===id); if(a)Object.assign(a,patch); },
+  async deleteEntry(id){ if(LIVE){const{error}=await sb.from("attendance").delete().eq("id",id);if(error)throw error;return;} DEMO_ATT=DEMO_ATT.filter(x=>x.id!==id); },
   async accounts(){ if(!LIVE)return clone(DEMO_ACCOUNTS).sort((a,b)=>(a.name||"").localeCompare(b.name||"")); const{data,error}=await sb.from("hub_accounts").select("*").order("name"); if(error)throw error; return data||[]; },
   async accountByLogin(q){ if(!LIVE){ const isE=q.indexOf("@")>=0; const v=isE?q.toLowerCase():q.toUpperCase(); return DEMO_ACCOUNTS.find(a=>isE?(a.email||"").toLowerCase()===v:(a.setup_code||"")===v)||null; } const isEmail=q.indexOf("@")>=0; const col=isEmail?"email":"setup_code"; const val=isEmail?q.toLowerCase():q.toUpperCase(); const{data,error}=await sb.from("hub_accounts").select("*").eq(col,val).limit(1); if(error)throw error; return (data&&data[0])||null; },
   async accountById(id){ if(!LIVE)return DEMO_ACCOUNTS.find(a=>a.id===id)||null; const{data,error}=await sb.from("hub_accounts").select("*").eq("id",id).limit(1); if(error)throw error; return (data&&data[0])||null; },
@@ -2774,6 +2775,7 @@ function atAdmin(){
       <div class="card">
         <div class="tp-tools"><div class="section-label" style="margin:0">On the clock now (${openNow.length})</div>
           <div class="ts-toggle"><button class="${state.presenceView!=='list'?'on':''}" onclick="state.presenceView='team';renderAttendance()">By team</button><button class="${state.presenceView==='list'?'on':''}" onclick="state.presenceView='list';renderAttendance()">Everyone</button></div>
+          <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="clearTodayPunches()"><i class="ti ti-eraser"></i> Clear today's punches</button>
         </div>
         ${state.presenceView==='list'?liveHtml:`<div class="tp-wrap">${teamBoards()}</div>`}
       </div>
@@ -2799,6 +2801,16 @@ function atAdmin(){
 }
 function sinceText(iso){const m=Math.floor((Date.now()-new Date(iso))/60000);if(m<60)return m+"m";const h=Math.floor(m/60);return h+"h "+(m%60)+"m";}
 function mapLink(a){ return (a.lat&&a.lng)?` · <a href="https://www.google.com/maps?q=${a.lat},${a.lng}" target="_blank" rel="noopener" style="color:var(--accent)">map</a>`:""; }
+async function clearTodayPunches(){
+  const today=new Date().toISOString().slice(0,10);
+  const todays=(ATT||[]).filter(a=>(a.clock_in||"").slice(0,10)===today);
+  if(!todays.length){ toast("No punches from today to clear"); return; }
+  if(!confirm("Delete all "+todays.length+" clock-in "+(todays.length===1?"entry":"entries")+" from today?\n\nThis removes them from the timesheets and totals. Use it to clean up test punches. It cannot be undone.")) return;
+  try{
+    for(const a of todays){ await DB.deleteEntry(a.id); }
+    await refresh(); renderAttendance(); toast("Cleared "+todays.length+" punch"+(todays.length===1?"":"es"));
+  }catch(e){ console.error(e); toast("Could not clear: "+((e&&(e.message||e.details))||"error")); }
+}
 function teamBoards(){
   const active=(EMP||[]).filter(e=>e.active!==false);
   const openBy={}; (ATT||[]).filter(a=>!a.clock_out).forEach(a=>{ if(!openBy[a.employee_id])openBy[a.employee_id]=a; });
