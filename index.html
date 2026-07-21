@@ -927,6 +927,8 @@ const DB={
   async clockOut(id,clock_out,hours){ if(LIVE){const{error}=await sb.from("attendance").update({clock_out,hours}).eq("id",id);if(error)throw error;return;} const a=DEMO_ATT.find(x=>x.id===id); if(a){a.clock_out=clock_out;a.hours=hours;} },
   async updateEntry(id,patch){ if(LIVE){const{error}=await sb.from("attendance").update(patch).eq("id",id);if(error)throw error;return;} const a=DEMO_ATT.find(x=>x.id===id); if(a)Object.assign(a,patch); },
   async deleteEntry(id){ if(LIVE){const{error}=await sb.from("attendance").delete().eq("id",id);if(error)throw error;return;} DEMO_ATT=DEMO_ATT.filter(x=>x.id!==id); },
+  async renameAttendance(empId,name){ if(LIVE){const{error}=await sb.from("attendance").update({employee_name:name}).eq("employee_id",empId); if(error)throw error; return;} DEMO_ATT.forEach(a=>{ if(a.employee_id===empId) a.employee_name=name; }); },
+  async renameRequests(empId,name){ if(LIVE){const{error}=await sb.from("leave_requests").update({employee_name:name}).eq("employee_id",empId); if(error)throw error; return;} DEMO_REQ.forEach(r=>{ if(r.employee_id===empId) r.employee_name=name; }); },
   async accounts(){ if(!LIVE)return clone(DEMO_ACCOUNTS).sort((a,b)=>(a.name||"").localeCompare(b.name||"")); const{data,error}=await sb.from("hub_accounts").select("*").order("name"); if(error)throw error; return data||[]; },
   async accountByLogin(q){ if(!LIVE){ const isE=q.indexOf("@")>=0; const v=isE?q.toLowerCase():q.toUpperCase(); return DEMO_ACCOUNTS.find(a=>isE?(a.email||"").toLowerCase()===v:(a.setup_code||"")===v)||null; } const isEmail=q.indexOf("@")>=0; const col=isEmail?"email":"setup_code"; const val=isEmail?q.toLowerCase():q.toUpperCase(); const{data,error}=await sb.from("hub_accounts").select("*").eq(col,val).limit(1); if(error)throw error; return (data&&data[0])||null; },
   async accountById(id){ if(!LIVE)return DEMO_ACCOUNTS.find(a=>a.id===id)||null; const{data,error}=await sb.from("hub_accounts").select("*").eq("id",id).limit(1); if(error)throw error; return (data&&data[0])||null; },
@@ -1258,12 +1260,13 @@ function empPanel(i){
   try{ empPanelBuild(i); }
   catch(e){ console.error("empPanel",e); toast("Could not open this card: "+((e&&e.message)||e)); }
 }
+function canEdit0(){ return state.isSuper; }
 function empPanelBuild(i){
   const p=PROFILES[i]; if(!p)return;
   ["docs","training","sick","files"].forEach(k=>{ if(typeof p[k]==="string"&&p[k].trim()){ try{ p[k]=JSON.parse(p[k]); }catch(e){ p[k]=null; } } });
   const st=p.status||""; const stl=st.toLowerCase();
   $("#pCat").innerHTML=`<span class="team-dot" style="background:var(--accent)"></span><span style="color:var(--accent)">${esc(p.class||"Employee")}${p.team?" · "+(p.team==="ph"?"Philippines":"California"):""}</span>`;
-  $("#pTitle").textContent=p.name||"";
+  $("#pTitle").innerHTML=esc(p.name||"")+(canEdit0()?` <button class="ic-btn" title="Edit name & details" style="vertical-align:middle" onclick="empEditModal(${i})"><i class="ti ti-pencil"></i></button>`:"");
   $("#pBadges").innerHTML=(st?`<span class="badge ${stl.startsWith("active")?"active":"req"}"><i class="ti ti-user-check"></i>${esc(st)}</span>`:"")
     + (p.role?`<span class="badge active" style="background:var(--accent-soft);color:var(--accent)"><i class="ti ti-briefcase"></i>${esc(p.role)}</span>`:"");
   const kv=(icon,k,v)=> (v!==null&&v!==undefined&&String(v).trim()!=="")?`<div class="kv"><i class="ti ${icon}"></i><span class="k">${k}</span><span class="v">${esc(String(v))}</span></div>`:"";
@@ -1335,6 +1338,51 @@ function empPanelBuild(i){
     : `<button class="btn btn-ghost" style="width:100%;color:var(--bad)" onclick="empOffboardModal(${i})"><i class="ti ti-user-x"></i> Offboard / mark as separated</button>`) : "";
   $("#pFoot").innerHTML=empActions+`<div class="foot-note" style="margin-top:${empActions?"8px":"0"}">Edit details in Supabase or your master spreadsheet, then refresh.</div>`;
   $("#panel").classList.add("open");$("#panelScrim").classList.add("open");$("#pBody").scrollTop=0;
+}
+function empEditModal(i){
+  const p=PROFILES[i]; if(!p)return;
+  const cls=(p.class||"").trim();
+  const clsOpts=["W-2","1099"].concat(["W-2","1099",""].indexOf(cls)<0?[cls]:[]).map(c=>`<option value="${esc(c)}"${c===cls?" selected":""}>${esc(c)}</option>`).join("");
+  $("#modalBox").innerHTML=`<h3><i class="ti ti-pencil"></i> Edit ${esc(p.name||"details")}</h3>
+    <div class="field"><label>Full name</label><input class="f-input" id="eeName" value="${esc(p.name||"")}"/></div>
+    <div class="field"><label>Role / title</label><input class="f-input" id="eeRole" value="${esc(p.role||"")}" placeholder="e.g. Cleaner, Driver / Team Lead"/></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="field"><label>Classification</label><select class="f-input" id="eeClass"><option value="">-</option>${clsOpts}</select></div>
+      <div class="field"><label>Team</label><select class="f-input" id="eeTeam"><option value="ca"${p.team!=="ph"?" selected":""}>California</option><option value="ph"${p.team==="ph"?" selected":""}>Philippines</option></select></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="field"><label>Pay rate ($/hr)</label><input class="f-input" type="number" min="0" step="0.01" id="eeRate" value="${esc(p.pay_rate!=null?String(p.pay_rate):"")}"/></div>
+      <div class="field"><label>Pay schedule</label><select class="f-input" id="eeSched"><option value="">-</option><option${p.pay_schedule==="Weekly"?" selected":""}>Weekly</option><option${p.pay_schedule==="Bi-weekly"?" selected":""}>Bi-weekly</option></select></div>
+    </div>
+    <div class="field"><label>Address</label><input class="f-input" id="eeAddr" value="${esc(p.address||"")}"/></div>
+    <div style="font-size:11.5px;color:var(--faint);line-height:1.5;margin-top:2px">Fixing the name here also renames their clock-roster row, so the Directory, Clock, Timekeeping, and Time off all stay in step.</div>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="empEditSave(${i})"><i class="ti ti-device-floppy"></i> Save</button></div>`;
+  openModal();
+}
+async function empEditSave(i){
+  const p=PROFILES[i]; if(!p)return;
+  const g=id=>(($("#"+id)||{}).value||"").trim();
+  const name=g("eeName"); if(!name){ const el=$("#eeName"); if(el)el.style.borderColor="var(--bad)"; return; }
+  const oldName=p.name||"";
+  if(normName(name)!==normName(oldName)){
+    const clash=PROFILES.find(x=>x.id!==p.id && namesAlike(x.name,name));
+    if(clash){ toast("Another person already has a very similar name: "+clash.name); return; }
+  }
+  const patch={name,role:g("eeRole")||null,class:g("eeClass")||null,team:g("eeTeam")||"ca",pay_rate:g("eeRate")||null,pay_schedule:g("eeSched")||null,address:g("eeAddr")||null};
+  try{ await DB.updateProfile(p.id,patch); }catch(e){ toast("Could not save: "+((e&&(e.message||e.details))||"error")); return; }
+  if(normName(name)!==normName(oldName)){
+    const rows=(EMP||[]).filter(e=>fuzzyNamesAlike(e.name,oldName));
+    for(const r of rows){
+      try{ await DB.updateEmployee(r.id,{name}); r.name=name; }catch(e){}
+      try{ await DB.renameAttendance(r.id,name); }catch(e){}
+      try{ await DB.renameRequests(r.id,name); }catch(e){}
+    }
+  }
+  Object.assign(p,patch);
+  closeModal();
+  try{ await refresh(); }catch(e){}
+  if(state.module==="directory"){ await renderDirectory(); const ni=PROFILES.findIndex(x=>x.id===p.id); if(ni>=0) empPanel(ni); }
+  toast("Saved");
 }
 function empContactDirty(i){ const b=$("#ecSave"); if(b) b.style.display=""; }
 async function empContactSave(i){
@@ -1903,10 +1951,10 @@ function rosterFind(name){
   const n=normName(name);
   const exact=(EMP||[]).find(x=>normName(x.name)===n);
   if(exact) return exact;
-  const cand=(EMP||[]).filter(x=>namesAlike(x.name,name));
+  const cand=(EMP||[]).filter(x=>fuzzyNamesAlike(x.name,name));
   return cand.length===1?cand[0]:null;
 }
-function sessEmp(){ if(typeof SESSION==="undefined"||!SESSION)return null; const n=normName(SESSION.name); return EMP.find(e=>normName(e.name)===n)||null; }
+function sessEmp(){ if(typeof SESSION==="undefined"||!SESSION)return null; return rosterFind(SESSION.name); }
 function lockedToSelf(){ return !state.isAdmin && !state.kiosk && typeof SESSION!=="undefined" && !!SESSION; }
 function rosterMissNote(title,sub){ return pageHead(title,sub,"")+`<div class="card empty"><i class="ti ti-user-question"></i><p>${t("Your sign-in isn't linked to anyone on the roster yet. Ask the office to match your account name to the directory.")}</p></div>`; }
 function applyUserFoot(){ const b=$("#userSignOut"); if(!b)return; if(SESSION){ b.style.display="flex"; $("#userSignOutLabel").textContent=t("Sign out")+" \u00b7 "+((SESSION.name||"").split(" ")[0]||""); } else b.style.display="none"; }
