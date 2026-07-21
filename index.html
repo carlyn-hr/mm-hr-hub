@@ -955,6 +955,7 @@ function lighten(hex,amt){const n=parseInt(hex.replace('#',''),16),r=n>>16,g=(n>
 function darken(hex,amt){const n=parseInt(hex.replace('#',''),16),r=n>>16,g=(n>>8)&255,b=n&255,m=v=>Math.round(v*(1-amt));return `rgb(${m(r)},${m(g)},${m(b)})`;}
 const fmtDate=d=>{if(!d)return"";const x=new Date(d+"T00:00");return x.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});};
 const fmtTime=iso=>new Date(iso).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"});
+const isTodayIso=iso=>{const d=new Date(iso),t=new Date();return d.getFullYear()===t.getFullYear()&&d.getMonth()===t.getMonth()&&d.getDate()===t.getDate();};
 const fmtDay=iso=>new Date(iso).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});
 function businessDays(s,e){if(!s||!e)return 0;const a=new Date(s+"T00:00"),b=new Date(e+"T00:00");if(b<a)return 0;let n=0,d=new Date(a);while(d<=b){const w=d.getDay();if(w!==0&&w!==6)n++;d.setDate(d.getDate()+1);}return n;}
 function badge(s){const m={pending:'<i class="ti ti-clock"></i>Pending',approved:'<i class="ti ti-circle-check"></i>Approved',rejected:'<i class="ti ti-circle-x"></i>Declined'};return `<span class="badge ${s}">${m[s]||s}</span>`;}
@@ -2906,6 +2907,8 @@ async function atEndBreak(id){
 function atAdmin(){
   if(!state.presenceView)state.presenceView="team";
   const openNow=ATT.filter(a=>!a.clock_out);
+  const stale=openNow.filter(a=>!isTodayIso(a.clock_in));
+  const staleHtml=stale.length?`<div class="card" style="border-color:var(--warn);margin-bottom:14px"><div style="font-size:13px;font-weight:700;color:var(--warn);margin-bottom:8px"><i class="ti ti-alert-triangle"></i> ${stale.length===1?"1 forgotten shift":stale.length+" forgotten shifts"} \u00b7 clocked in on a previous day and never out</div>${stale.map(a=>`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--border);font-size:13px"><b style="flex:1;min-width:0">${esc(a.employee_name)}</b><span style="color:var(--faint)">${fmtDay(a.clock_in)} ${fmtTime(a.clock_in)} \u2192 ...</span>${state.isSuper?`<button class="btn btn-ghost btn-sm" onclick="staleFixModal('${a.id}')"><i class="ti ti-clock-check"></i> Set clock-out</button><button class="ic-btn" title="Delete this punch" style="color:var(--bad)" onclick="deletePunch('${a.id}')"><i class="ti ti-trash"></i></button>`:``}</div>`).join("")}<div style="font-size:11.5px;color:var(--faint);margin-top:8px">These show as green \u201cOn the clock\u201d until closed, and they never count toward the timesheet without a clock-out.</div></div>`:"";
   const today=new Date().toISOString().slice(0,10);
   const todays=ATT.filter(a=>a.clock_in.slice(0,10)===today);
   if(!state.tsRange){const end=new Date();const start=new Date();start.setDate(start.getDate()-6);state.tsRange={start:start.toISOString().slice(0,10),end:end.toISOString().slice(0,10),team:"all"};}
@@ -2915,6 +2918,7 @@ function atAdmin(){
 
   $("#view").innerHTML=pageHead("Timekeeping","Time, attendance & payroll","Live status, today's activity, and a timesheet you can export for payroll, with a California overtime breakdown.")+
     `<div style="display:flex;gap:8px;margin-bottom:18px"><button class="linkbtn" onclick="goModule('clock')"><i class="ti ti-arrow-left"></i> Clock screen</button></div>
+    ${staleHtml}
     <div class="grid2" style="align-items:start">
       <div class="card">
         <div class="tp-tools"><div class="section-label" style="margin:0">On the clock now (${openNow.length})</div>
@@ -2945,6 +2949,25 @@ function atAdmin(){
 }
 function sinceText(iso){const m=Math.floor((Date.now()-new Date(iso))/60000);if(m<60)return m+"m";const h=Math.floor(m/60);return h+"h "+(m%60)+"m";}
 function mapLink(a){ return (a.lat&&a.lng)?` · <a href="https://www.google.com/maps?q=${a.lat},${a.lng}" target="_blank" rel="noopener" style="color:var(--accent)">map</a>`:""; }
+function staleFixModal(id){
+  const a=(ATT||[]).find(x=>x.id===id); if(!a)return;
+  const d=new Date(a.clock_in); const def=new Date(d.getTime()+8*3600000);
+  const hh=String(def.getHours()).padStart(2,"0"), mm=String(def.getMinutes()).padStart(2,"0");
+  $("#modalBox").innerHTML=`<h3><i class="ti ti-clock-check"></i> Set clock-out</h3>
+    <p style="font-size:13px;color:var(--sub);margin-bottom:12px"><b>${esc(a.employee_name)}</b> clocked in ${fmtDay(a.clock_in)} at ${fmtTime(a.clock_in)} and never out. Pick the time they actually finished that day.</p>
+    <div class="field"><label>Clock-out time (${fmtDay(a.clock_in)})</label><input class="f-input" type="time" id="sfTime" value="${hh}:${mm}"/></div>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="staleFixSave('${id}')"><i class="ti ti-device-floppy"></i> Save</button></div>`;
+  openModal();
+}
+async function staleFixSave(id){
+  const a=(ATT||[]).find(x=>x.id===id); if(!a)return;
+  const tv=(($("#sfTime")||{}).value||"").trim(); if(!/^\d{2}:\d{2}$/.test(tv)){ toast("Pick a time"); return; }
+  const d=new Date(a.clock_in); const out=new Date(d); out.setHours(parseInt(tv.slice(0,2),10),parseInt(tv.slice(3),10),0,0);
+  if(out<=d){ toast("Clock-out must be after the clock-in"); return; }
+  const hours=Math.round(((out-d)/3600000)*100)/100;
+  try{ await DB.updateEntry(id,{clock_out:out.toISOString(),hours}); }catch(e){ toast("Could not save"); return; }
+  closeModal(); await refresh(); renderAttendance(); toast("Shift closed at "+hours+"h");
+}
 async function deletePunch(id){
   if(!state.isSuper){ toast("Only a super admin can delete punches"); return; }
   const a=(ATT||[]).find(x=>x.id===id);
@@ -2980,7 +3003,7 @@ function teamBoards(){
     const present=g.members.filter(m=>openBy[m.id]).length;
     const cls=present===0?"none":(present===g.members.length?"full":"");
     const rows=g.members.map(m=>{ const o=openBy[m.id]; const on=!!o;
-      return `<div class="tp-row"><span class="tp-dot ${on?"on":""}"></span><div class="avatar" style="width:26px;height:26px;font-size:10px;background:${avatarColor(m.team)}">${initials(m.name)}</div><div class="tp-nm">${esc(m.name)}${m.role==="lead"?'<span class="tp-lead">LEAD</span>':""}</div><span class="tp-st ${on?"on":""}">${on?("On the clock "+fmtTime(o.clock_in)):t("Not clocked in")}</span></div>`;
+      return `<div class="tp-row"><span class="tp-dot ${on?"on":""}"></span><div class="avatar" style="width:26px;height:26px;font-size:10px;background:${avatarColor(m.team)}">${initials(m.name)}</div><div class="tp-nm">${esc(m.name)}${m.role==="lead"?'<span class="tp-lead">LEAD</span>':""}</div><span class="tp-st ${on?"on":""}"${on&&!isTodayIso(o.clock_in)?' style="color:var(--warn)"':''}>${on?(isTodayIso(o.clock_in)?("On the clock "+fmtTime(o.clock_in)):("Open since "+fmtDay(o.clock_in)+" \u00b7 no clock-out")):t("Not clocked in")}</span></div>`;
     }).join("");
     return `<div class="tp-card"><div class="tp-head"><span class="tp-title">${esc(g.title)}</span><span class="tp-count ${cls}">${present} / ${g.members.length} ${t("on the clock")}</span></div>${rows}</div>`;
   }).join("");
