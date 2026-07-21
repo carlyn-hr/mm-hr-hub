@@ -1350,7 +1350,8 @@ async function empContactSave(i){
 function empTeamDirty(i){ const b=$("#etSave"); if(b) b.style.display=""; }
 async function empTeamSave(i){
   const p=PROFILES[i]; if(!p) return;
-  const lead=(($("#edLead")||{}).value||"").trim();
+  let lead=(($("#edLead")||{}).value||"").trim();
+  if(lead){ const lr=rosterFind(lead); if(lr) lead=lr.name; }
   const trole=(($("#edTRole")||{}).value||"").trim();
   const btn=$("#etSave"); if(btn) btn.disabled=true;
   let colMissing=false;
@@ -2854,7 +2855,7 @@ function clockTeamSummary(){
   if(!leads.length && !ics.length) return "";
   const openIds=new Set((ATT||[]).filter(a=>!a.clock_out).map(a=>a.employee_id));
   const boxes=leads.map(l=>{
-    const crew=active.filter(e=>e.role==="rf"&&(e.lead||"")===l.name);
+    const crew=active.filter(e=>e.role==="rf"&&e.lead&&fuzzyNamesAlike(e.lead,l.name));
     const crewIn=crew.filter(e=>openIds.has(e.id)).length;
     const leadIn=openIds.has(l.id);
     return `<div class="tl-box ${leadIn?"in":""}"><div class="tl-h"><span class="tl-dot ${leadIn?"on":""}"></span><span class="tl-name">${esc(l.name)}</span><span class="tl-badge ${leadIn?"in":"out"}">${leadIn?t("Lead in"):t("Lead out")}</span></div><div class="tl-count"><b>${crewIn}</b> ${t("of")} ${crew.length} ${t("clocked in")}</div></div>`;
@@ -2968,7 +2969,7 @@ function teamBoards(){
   const openBy={}; (ATT||[]).filter(a=>!a.clock_out).forEach(a=>{ if(!openBy[a.employee_id])openBy[a.employee_id]=a; });
   const leads=active.filter(e=>e.role==="lead").sort((a,b)=>a.name.localeCompare(b.name));
   const groups=[];
-  leads.forEach(l=>{ const crew=[l].concat(active.filter(e=>e.role==="rf"&&(e.lead||"")===l.name).sort((a,b)=>a.name.localeCompare(b.name))); groups.push({title:l.name+"'s team",members:crew}); });
+  leads.forEach(l=>{ const crew=[l].concat(active.filter(e=>e.role==="rf"&&e.lead&&fuzzyNamesAlike(e.lead,l.name)).sort((a,b)=>a.name.localeCompare(b.name))); groups.push({title:l.name+"'s team",members:crew}); });
   const ics=active.filter(e=>e.role==="ic").sort((a,b)=>a.name.localeCompare(b.name));
   if(ics.length) groups.push({title:"Independent contractors",members:ics});
   const claimed=new Set(); groups.forEach(g=>g.members.forEach(m=>claimed.add(m.id)));
