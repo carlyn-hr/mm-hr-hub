@@ -980,6 +980,22 @@ async function loadPolicies(){
 async function refresh(){
   try{ EMP=await DB.employees(); REQ=await DB.requests(); ATT=await DB.attendance(); }
   catch(e){ console.error(e); if(LIVE){LIVE=false;applyBranding();toast("Database unreachable, using demo data");EMP=await DB.employees();REQ=await DB.requests();ATT=await DB.attendance();} }
+  /* Directory status is the source of truth: anyone marked Separated there is removed
+     from the active roster (Clock, Timekeeping, Time off), and their leftover active
+     roster rows are deactivated in the database so the fix sticks. History is kept. */
+  try{
+    const profs=await DB.profiles();
+    const sepNames=profs.filter(p=>(p.status||"").toLowerCase().indexOf("separat")===0).map(p=>p.name);
+    if(sepNames.length){
+      const gone=EMP.filter(e=>sepNames.some(sn=>namesAlike(sn,e.name)));
+      if(gone.length){
+        gone.forEach(e=>{ try{ DB.deactivateEmployee(e.id).catch(()=>{}); }catch(err){} });
+        INACTIVE_EMP=INACTIVE_EMP.concat(gone.filter(g=>!INACTIVE_EMP.some(x=>x.id===g.id)));
+        const goneIds=new Set(gone.map(g=>g.id));
+        EMP=EMP.filter(e=>!goneIds.has(e.id));
+      }
+    }
+  }catch(e){}
   const p=REQ.filter(r=>r.status==="pending").length;
   $("#pendDot").style.display=p?"inline-flex":"none"; $("#pendDot").textContent=p;
 }
@@ -1266,7 +1282,7 @@ function empPanelBuild(i){
     ? `<div class="kv kv-e"><i class="ti ti-building-community"></i><span class="k">${t("Work setup")}</span><span class="v"><span class="ws-seg">${wsBtn("onsite","ti-map-pin",t("Onsite / Field"))}${wsBtn("remote","ti-home",t("Remote"))}</span></span></div>`
     : (ws?kv("ti-building-community",t("Work setup"),ws==="remote"?t("Remote"):t("Onsite / Field")):""));
   const employment = kv("ti-briefcase","Role",p.role)+kv("ti-id-badge-2","Class",p.class)+workSetup+kv("ti-calendar","Pay schedule",p.pay_schedule)+kv("ti-coin","Pay rate",pay);
-  const rosterMatch=(EMP||[]).find(x=>normName(x.name)===normName(p.name));
+  const rosterMatch=rosterFind(p.name);
   const roleCode=(rosterMatch&&rosterMatch.role)||"";
   const leadOpts=(EMP||[]).filter(e=>e.role==="lead").map(e=>`<option value="${esc(e.name)}">`).join("");
   const teamBlock = canEdit ? (
@@ -1337,10 +1353,11 @@ async function empTeamSave(i){
   let colMissing=false;
   try{ await DB.updateProfile(p.id,{lead:lead||null}); }
   catch(e){ const m=((e&&(e.message||e.details))||"")+""; if(/column|schema|lead|PGRST/i.test(m)) colMissing=true; else { if(btn)btn.disabled=false; toast("Could not save: "+m); return; } }
-  const em=(EMP||[]).find(x=>normName(x.name)===normName(p.name));
+  const em=rosterFind(p.name);
+  if(!em){ if(btn)btn.disabled=false; toast("Saved to the profile, but no matching name on the clock roster, so the team board can't show it. Fix the name in Time off > People so it matches the Directory."); return; }
   if(em){ try{ await DB.updateEmployee(em.id,{lead:lead||null,role:trole||null}); }catch(e){ const m=((e&&(e.message||e.details))||"")+""; if(/column|schema|lead|role|PGRST/i.test(m)) colMissing=true; } }
   p.lead=lead||null;
-  const em2=(EMP||[]).find(x=>normName(x.name)===normName(p.name)); if(em2){ em2.lead=lead||null; if(trole)em2.role=trole; }
+  const em2=rosterFind(p.name); if(em2){ em2.lead=lead||null; if(trole)em2.role=trole; }
   try{ await refresh(); }catch(e){}
   empPanel(i);
   toast(colMissing?"Saved here, but add the team columns in Supabase to keep it":"Team saved");
@@ -1357,7 +1374,7 @@ async function empDatesSave(i){
   const btn=$("#edSave"); if(btn) btn.disabled=true;
   try{
     await DB.updateProfile(p.id,{hire_date:hire||null,dob:dob||null});
-    const e=(EMP||[]).find(x=>normName(x.name)===normName(p.name));
+    const e=rosterFind(p.name);
     if(e){ const patch={}; if(hire)patch.hire_date=hire; if(bday)patch.bday=bday; if(Object.keys(patch).length) await DB.updateEmployee(e.id,patch); }
   }catch(err){ if(btn) btn.disabled=false; toast(t("Could not save dates")); return; }
   p.hire_date=hire||null; p.dob=dob||null;
@@ -1393,8 +1410,7 @@ function empOffboardModal(i){
 }
 async function empOffboard(i){
   const p=PROFILES[i]; if(!p)return;
-  const norm=s=>(s||"").trim().toLowerCase();
-  const rows=EMP.filter(e=>norm(e.name)===norm(p.name));
+  const rows=EMP.filter(e=>namesAlike(e.name,p.name));
   const ids=rows.map(e=>e.id);
   if((ATT||[]).some(a=>ids.indexOf(a.employee_id)>=0&&!a.clock_out)){ toast("They are on the clock. Clock them out in Timekeeping first."); return; }
   const date=(($("#sepDate")||{}).value)||new Date().toISOString().slice(0,10);
@@ -1807,6 +1823,24 @@ function sessLoad(){ try{ const s=JSON.parse(localStorage.getItem("mm_session")|
 function sessSave(a){ SESSION={id:a.id,name:a.name,exp:Date.now()+1000*60*60*24*30}; try{localStorage.setItem("mm_session",JSON.stringify(SESSION));}catch(e){} }
 function signOutUser(){ if(DEMO_SESSION){ location.reload(); return; } SESSION=null; try{localStorage.removeItem("mm_session");}catch(e){} state.isAdmin=false; state.isSuper=false; state.isOwner=false; applyRole(); closeNav(); authShow(); }
 function normName(s){ return (s||"").toLowerCase().replace(/\s+/g," ").trim(); }
+/* Two names count as the same person when one is contained in the other,
+   e.g. "Maria Cardona" and "Maria Cardona Rivas". Needs at least a shared
+   first and last name, so "Maribel Rodas" never matches "Mannery Rodas". */
+function namesAlike(a,b){
+  const A=normName(a).split(" ").filter(Boolean), B=normName(b).split(" ").filter(Boolean);
+  if(!A.length||!B.length) return false;
+  if(A.join(" ")===B.join(" ")) return true;
+  const S=A.length<=B.length?A:B, L=A.length<=B.length?B:A;
+  return S.length>=2 && S.every(w=>L.indexOf(w)>=0);
+}
+/* Find someone's clock-roster row: exact name first, then a unique close match. */
+function rosterFind(name){
+  const n=normName(name);
+  const exact=(EMP||[]).find(x=>normName(x.name)===n);
+  if(exact) return exact;
+  const cand=(EMP||[]).filter(x=>namesAlike(x.name,name));
+  return cand.length===1?cand[0]:null;
+}
 function sessEmp(){ if(typeof SESSION==="undefined"||!SESSION)return null; const n=normName(SESSION.name); return EMP.find(e=>normName(e.name)===n)||null; }
 function lockedToSelf(){ return !state.isAdmin && !state.kiosk && typeof SESSION!=="undefined" && !!SESSION; }
 function rosterMissNote(title,sub){ return pageHead(title,sub,"")+`<div class="card empty"><i class="ti ti-user-question"></i><p>${t("Your sign-in isn't linked to anyone on the roster yet. Ask the office to match your account name to the directory.")}</p></div>`; }
