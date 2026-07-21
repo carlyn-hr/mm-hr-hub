@@ -66,9 +66,8 @@
 
   Settings > API in Supabase has the Project URL and anon public key.
 
-  THE QR:  Admin > Attendance shows a printable clock-in QR built from
-  this page's own URL + #clock. Deploy first, then print it from the
-  live site so the QR points at the live address.
+  THE QR STATION WAS REMOVED on purpose: everyone clocks in from their
+  own signed-in phone, so the crew list is never shown on a shared screen.
   ============================================================
 -->
 
@@ -996,6 +995,10 @@ async function refresh(){
       }
     }
   }catch(e){}
+  /* Merge exact-name duplicates on the active roster. The row that's on the clock
+     (or has the most punch history) is kept, the duplicate's punches are moved onto
+     it, missing details are copied over, and the empty shell is deactivated. */
+  try{ await dedupeRoster(); }catch(e){ console.error("dedupe",e); }
   const p=REQ.filter(r=>r.status==="pending").length;
   $("#pendDot").style.display=p?"inline-flex":"none"; $("#pendDot").textContent=p;
 }
@@ -1044,8 +1047,7 @@ async function boot(){
   if(EMP.length){ state.meId=EMP[0].id; state.clockId=EMP[0].id; }
   applyLang();
   const _h=location.hash||"";
-  if(_h==="#clock"){ enterKiosk(); }
-  else if(_h.indexOf("#onboard")===0){ const _c=(_h.split("=")[1]||"").toUpperCase(); startOnboard(_c); }
+  if(_h.indexOf("#onboard")===0){ const _c=(_h.split("=")[1]||"").toUpperCase(); startOnboard(_c); }
   else {
     SESSION=sessLoad();
     if(LIVE && !SESSION && await authPing()){ authShow(); }
@@ -1053,11 +1055,6 @@ async function boot(){
   }
 }
 function startOnboard(code){ state.kiosk=true; document.body.classList.add("kiosk"); state.module="onboard"; state.onboardCode=code||""; state.onboardEntered=false; state.onboardRec=null; render(); }
-function enterKiosk(){
-  state.kiosk=true; state.module="clock"; state.atView="clock";
-  document.body.classList.add("kiosk");
-  render();
-}
 
 /* ============================================================ NAV / SHELL ============================================================ */
 function roleName(){ return state.isSuper?"Super admin":(state.isAdmin?"Admin":"Staff"); }
@@ -1832,6 +1829,35 @@ function namesAlike(a,b){
   if(A.join(" ")===B.join(" ")) return true;
   const S=A.length<=B.length?A:B, L=A.length<=B.length?B:A;
   return S.length>=2 && S.every(w=>L.indexOf(w)>=0);
+}
+/* Merge exact-name duplicate rows on the active roster into one. */
+async function dedupeRoster(){
+  const groups={};
+  (EMP||[]).forEach(e=>{ const k=normName(e.name); if(k){ (groups[k]=groups[k]||[]).push(e); } });
+  const openIds=new Set((ATT||[]).filter(a=>!a.clock_out).map(a=>a.employee_id));
+  const punches=id=>(ATT||[]).filter(a=>a.employee_id===id).length;
+  for(const k in groups){
+    const g=groups[k]; if(g.length<2) continue;
+    g.sort((a,b)=>{
+      const ao=openIds.has(a.id)?1:0, bo=openIds.has(b.id)?1:0;
+      if(ao!==bo) return bo-ao;
+      return punches(b.id)-punches(a.id);
+    });
+    const keep=g[0];
+    for(let x=1;x<g.length;x++){
+      const dup=g[x];
+      for(const a of (ATT||[]).filter(r=>r.employee_id===dup.id)){
+        try{ await DB.updateEntry(a.id,{employee_id:keep.id}); a.employee_id=keep.id; }catch(e){}
+      }
+      const patch={};
+      ["hire_date","bday","email","lead","role"].forEach(f=>{ if(!keep[f]&&dup[f]) patch[f]=dup[f]; });
+      if(Object.keys(patch).length){ try{ await DB.updateEmployee(keep.id,patch); Object.assign(keep,patch); }catch(e){} }
+      try{ await DB.deactivateEmployee(dup.id); }catch(e){}
+      EMP=EMP.filter(e=>e.id!==dup.id);
+    }
+  }
+  /* Merged shells are duplicates, not separations: keep them out of the separated lists. */
+  INACTIVE_EMP=(INACTIVE_EMP||[]).filter(x=>!(EMP||[]).some(e=>normName(e.name)===normName(x.name)));
 }
 /* Find someone's clock-roster row: exact name first, then a unique close match. */
 function rosterFind(name){
@@ -2850,7 +2876,7 @@ function atAdmin(){
   const liveHtml=openNow.length?`<div class="live-list">${openNow.map(a=>`<div class="live-row"><span class="pulse"></span><div class="avatar" style="width:30px;height:30px;font-size:11px;background:${avatarColor(a.team)}">${initials(a.employee_name)}</div><div><div style="font-size:13.5px;font-weight:600">${esc(a.employee_name)}</div><div style="font-size:12px;color:var(--faint)">${a.site?esc(a.site)+" · ":""}in at ${fmtTime(a.clock_in)}${mapLink(a)}</div></div><span class="since">${sinceText(a.clock_in)}</span></div>`).join("")}</div>`:`<div class="empty" style="padding:24px"><i class="ti ti-coffee"></i><p>Nobody clocked in right now.</p></div>`;
 
   $("#view").innerHTML=pageHead("Timekeeping","Time, attendance & payroll","Live status, today's activity, and a timesheet you can export for payroll, with a California overtime breakdown.")+
-    `<div style="display:flex;gap:8px;margin-bottom:18px"><button class="linkbtn" onclick="goModule('clock')"><i class="ti ti-arrow-left"></i> Clock screen</button><button class="linkbtn" onclick="showQR()" style="margin-left:auto"><i class="ti ti-qrcode"></i> Clock-in QR</button></div>
+    `<div style="display:flex;gap:8px;margin-bottom:18px"><button class="linkbtn" onclick="goModule('clock')"><i class="ti ti-arrow-left"></i> Clock screen</button></div>
     <div class="grid2" style="align-items:start">
       <div class="card">
         <div class="tp-tools"><div class="section-label" style="margin:0">On the clock now (${openNow.length})</div>
@@ -3006,26 +3032,6 @@ function exportCSV(){
   const head=["Employee","Team","Days worked","Office hours","Travel hours","Onsite (cleaning) hours","Remote hours","Total hours"];
   const lines=[head.join(",")].concat(data.map(d=>[`"${d.name}"`,CONFIG.teams[d.team]?.label||d.team,d.daysWorked,r1(d.office),r1(d.travel),r1(d.onsite),r1(d.remote),r1(d.total)].join(",")));
   const blob=new Blob([lines.join("\n")],{type:"text/csv"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`timesheet_${state.tsRange.start}_to_${state.tsRange.end}.csv`;a.click();URL.revokeObjectURL(url);toast("Timesheet exported");
-}
-function showQR(){
-  const url=location.origin+location.pathname+"#clock";
-  let qrImg="";
-  try{ if(window.qrcode){const qr=qrcode(0,"M");qr.addData(url);qr.make();qrImg=qr.createImgTag(6,8);} }catch(e){console.error(e);}
-  $("#modalBox").innerHTML=`<h3>Clock-in QR code</h3>
-    <div class="qr-wrap"><div class="qr-box">${qrImg||'<div style="width:170px;height:170px;display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:12px">QR unavailable</div>'}</div>
-      <div class="qr-info"><p>Workers scan this to open the clock-in screen on their phone. Print it and post it at each site, or add it to their welcome pack.</p>
-        <div class="qr-url">${esc(url)}</div>
-        <p style="font-size:11.5px;color:var(--faint)">Deploy the Hub first, then open this from the live address so the QR points there, not at a preview link.</p>
-      </div></div>
-    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Close</button><button class="btn btn-primary" onclick="printQR()"><i class="ti ti-printer"></i> Print</button></div>`;
-  openModal();
-}
-function printQR(){
-  const url=location.origin+location.pathname+"#clock";
-  let qrImg="";try{const qr=qrcode(0,"M");qr.addData(url);qr.make();qrImg=qr.createImgTag(8,10);}catch(e){}
-  const w=window.open("","_blank");
-  w.document.write(`<html><head><title>Clock-in QR</title><style>body{font-family:sans-serif;text-align:center;padding:50px}h1{font-size:26px;margin-bottom:6px}p{color:#555;font-size:15px}.q{margin:30px auto}</style></head><body><h1>${esc(CONFIG.companyName)}</h1><p>Scan to clock in and out</p><div class="q">${qrImg}</div><p style="font-size:12px;color:#999">${esc(url)}</p></body></html>`);
-  w.document.close();setTimeout(()=>w.print(),300);
 }
 
 boot();
