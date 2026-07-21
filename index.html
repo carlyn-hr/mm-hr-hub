@@ -1350,14 +1350,25 @@ async function empTeamSave(i){
   let colMissing=false;
   try{ await DB.updateProfile(p.id,{lead:lead||null}); }
   catch(e){ const m=((e&&(e.message||e.details))||"")+""; if(/column|schema|lead|PGRST/i.test(m)) colMissing=true; else { if(btn)btn.disabled=false; toast("Could not save: "+m); return; } }
-  const em=rosterFind(p.name);
-  if(!em){ if(btn)btn.disabled=false; toast("Saved to the profile, but no matching name on the clock roster, so the team board can't show it. Fix the name in Time off > People so it matches the Directory."); return; }
-  if(em){ try{ await DB.updateEmployee(em.id,{lead:lead||null,role:trole||null}); }catch(e){ const m=((e&&(e.message||e.details))||"")+""; if(/column|schema|lead|role|PGRST/i.test(m)) colMissing=true; } }
+  let em=rosterFind(p.name);
+  let created=false;
+  if(!em){
+    /* Not on the clock roster yet: putting someone on a team means they belong
+       there, so create their roster row now with the team role already set. */
+    const balances={}; ((CONFIG.teams[p.team||"ca"]||{}).leaveTypes||[]).forEach(lt=>balances[lt]=0);
+    const ne={name:p.name,team:p.team||"ca",email:p.email||"",active:true,balances,lead:lead||null,role:trole||null};
+    if(p.hire_date) ne.hire_date=(""+p.hire_date).slice(0,10);
+    try{ await DB.addEmployee(ne); created=true; }
+    catch(e){ if(btn)btn.disabled=false; toast("Could not add them to the clock roster: "+((e&&(e.message||e.details))||"error")); return; }
+    try{ await refresh(); }catch(e){}
+    em=rosterFind(p.name);
+  }
+  if(em && !created){ try{ await DB.updateEmployee(em.id,{lead:lead||null,role:trole||null}); }catch(e){ const m=((e&&(e.message||e.details))||"")+""; if(/column|schema|lead|role|PGRST/i.test(m)) colMissing=true; } }
   p.lead=lead||null;
   const em2=rosterFind(p.name); if(em2){ em2.lead=lead||null; if(trole)em2.role=trole; }
   try{ await refresh(); }catch(e){}
   empPanel(i);
-  toast(colMissing?"Saved here, but add the team columns in Supabase to keep it":"Team saved");
+  toast(colMissing?"Saved here, but add the team columns in Supabase to keep it":(created?"Added to the clock roster and team saved":"Team saved"));
 }
 function empDatesDirty(i){ const b=$("#edSave"); if(b) b.style.display=""; }
 async function empDatesSave(i){
