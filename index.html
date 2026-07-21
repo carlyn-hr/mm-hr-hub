@@ -377,6 +377,22 @@ body.authgate .sidebar,body.authgate .topbar{display:none}
 .ts-punch .open{color:var(--ok);font-weight:700}
 .ts-grand{display:flex;align-items:center;padding:14px;margin-top:18px;background:var(--accent-soft);border-radius:var(--radius);font-weight:700;color:var(--accent-d)}
 .ts-grand .g{margin-left:auto;font-size:16px;font-variant-numeric:tabular-nums}
+.tp-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.tp-wrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+.tp-card{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--surface)}
+.tp-head{display:flex;align-items:center;gap:8px;padding:11px 13px;background:var(--bg);border-bottom:1px solid var(--border)}
+.tp-title{font-weight:700;font-size:13.5px;color:var(--text)}
+.tp-count{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--sub);background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2px 9px;white-space:nowrap}
+.tp-count.full{color:var(--ok);border-color:var(--ok);background:var(--ok-soft)}
+.tp-count.none{color:var(--faint)}
+.tp-row{display:flex;align-items:center;gap:9px;padding:8px 13px;border-top:1px dashed var(--border)}
+.tp-row:first-of-type{border-top:none}
+.tp-dot{width:9px;height:9px;border-radius:50%;background:var(--border);flex:none}
+.tp-dot.on{background:var(--ok);box-shadow:0 0 0 3px var(--ok-soft)}
+.tp-nm{font-size:13px;font-weight:600;color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tp-lead{font-size:9px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:5px;padding:1px 5px;margin-left:4px}
+.tp-st{font-size:11.5px;color:var(--faint);white-space:nowrap}
+.tp-st.on{color:var(--ok);font-weight:600}
 .daterow{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:18px}
 .daterow .field{margin-bottom:0}
 
@@ -747,64 +763,111 @@ const CAT_ICONS={"company":"ti-building","employ":"ti-briefcase","wage":"ti-coin
 
 /* ---- people / leave / attendance demo ---- */
 let DEMO_EMP=[
-  {id:"e1",name:"Maribel Rodas",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":5,"Vacation / PTO":6,"Unpaid Leave":0}},
-  {id:"e2",name:"Gilma Rodas",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e3",name:"Kimberly Cifuentes",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e4",name:"Migdalia Calderon",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e5",name:"Fred Rocha",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":4,"Vacation / PTO":8,"Unpaid Leave":0}},
-  {id:"e6",name:"Mercedes Reyes Gallina",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e7",name:"Glendy Guzman",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e8",name:"Maria Cardona Rivas",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e9",name:"Gindry Paola Santos",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e10",name:"Yeymi Calderon",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e11",name:"Adaias Lopez",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e12",name:"Maria Orozco",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e13",name:"Yolanda Gomez",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e14",name:"Maria Rodriguez",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e15",name:"Vilma Morelas",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e16",name:"Consuelo Gil",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e17",name:"Karla Ramirez",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e18",name:"Rodolfo Morales",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e19",name:"Javier Caamal",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e20",name:"Didimo Garcia",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e21",name:"Junior Lopez",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e22",name:"Melvin Lopez",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e23",name:"Rafael Manzo",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e24",name:"Areli Salinas",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e25",name:"Iremias Carvalho",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e26",name:"Josefa Lopez",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e27",name:"Floridama Alverez",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e28",name:"Annette Richmond",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e29",name:"Avyon Tillman",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e30",name:"Tahir Shabazz",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e31",name:"Juan Quec Chacon",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e32",name:"Mannery De Leon",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e33",name:"Keila Calderon",team:"ca",email:"",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0}},
-  {id:"e-owner",name:"Deander Gooden",team:"ca",email:"dgooden@mandmsolutionsllc.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},hire_date:"2025-03-03",bday:"04-12"}
+  {id:"e-owner",name:"Deander Gooden",team:"ca",email:"dgooden@mandmsolutionsllc.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},hire_date:"2025-03-03",bday:"04-12",role:"owner",lead:""},
+  {id:"m1",name:"Maribel Rodas",team:"ca",email:"Maribelrodas99@gmail.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},role:"lead",lead:"Deander Gooden"},
+  {id:"m2",name:"Gilma Rodas",team:"ca",email:"gilmajovita@gmail.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},role:"rf",lead:"Maribel Rodas"},
+  {id:"m3",name:"Kimberly Cifuentes",team:"ca",email:"Kcifuentes988@gmail.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},role:"rf",lead:"Maribel Rodas"},
+  {id:"m4",name:"Migdalia Calderon",team:"ca",email:"Migdalirodas77@gmail.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},role:"rf",lead:"Maribel Rodas"},
+  {id:"m8",name:"Maria Cardona Rivas",team:"ca",email:"mariaccardona295@gmail.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},role:"lead",lead:"Deander Gooden"},
+  {id:"m10",name:"Yeymi Calderon",team:"ca",email:"yeymideleon95@gmail.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},role:"rf",lead:"Maria Cardona Rivas"},
+  {id:"m11",name:"Adaias Lopez",team:"ca",email:"adaias21@gmail.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},role:"rf",lead:"Maria Cardona Rivas"},
+  {id:"m12",name:"Yolanda Gomez",team:"ca",email:"yolandagom2407@gmail.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},role:"lead",lead:"Deander Gooden"},
+  {id:"m13",name:"Vilma Morelas",team:"ca",email:"Vilmamorales169@gmail.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},role:"rf",lead:"Yolanda Gomez"},
+  {id:"m14",name:"Consuelo Gil",team:"ca",email:"c27gil71@gmail.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},role:"rf",lead:"Karla Ramirez"},
+  {id:"m15",name:"Karla Ramirez",team:"ca",email:"Karlafab77@outlook.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},role:"lead",lead:"Deander Gooden"},
+  {id:"m16",name:"Didimo Garcia",team:"ca",email:"",active:false,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},role:"rf",lead:"Nicholas Gribens"},
+  {id:"m17",name:"Junior Lopez",team:"ca",email:"Pelonrx100@gmail.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},role:"rf",lead:"Nicholas Gribens"},
+  {id:"m18",name:"Rafael Manzo",team:"ca",email:"rafamanzo82@yahoo.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},role:"lead",lead:"Deander Gooden"},
+  {id:"m19",name:"Areli Salinas",team:"ca",email:"arelisalinas0423@gmail.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},role:"rf",lead:"Rafael Manzo"},
+  {id:"m20",name:"Iremias Carvalho",team:"ca",email:"Iremiascarvalho@hotmail.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},role:"lead",lead:"Deander Gooden"},
+  {id:"m21",name:"Josefa Lopez",team:"ca",email:"JosefaReina2025@yahoo.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},role:"rf",lead:"Iremias Carvalho"},
+  {id:"m22",name:"Floridama Alverez",team:"ca",email:"Florylopez171@gmail.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},role:"rf",lead:"Iremias Carvalho"},
+  {id:"m23",name:"Nicolle Nahomy Hernandez Cruz",team:"ca",email:"nh9389870@gmail.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},role:"rf",lead:"Maria Cardona Rivas"},
+  {id:"m24",name:"Lester Pinula",team:"ca",email:"lesterpinula@gmail.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},role:"rf",lead:"Nicholas Gribens"},
+  {id:"m25",name:"Nicholas Gribens",team:"ca",email:"nicholasgribens@gmail.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},role:"lead",lead:"Deander Gooden"},
+  {id:"m26",name:"Kentaroh Kimura",team:"ph",email:"kimurakentaroh@gmail.com",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0},role:"ic",lead:"Deander Gooden"},
+  {id:"m27",name:"Rosemarie Salazar",team:"ph",email:"rosemarie.salazar0505@gmail.com",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0},role:"ic",lead:"Deander Gooden"},
+  {id:"m28",name:"Jawad Khattak",team:"ph",email:"Jawadkhattak2003@gmail.com",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0},role:"ic",lead:"Deander Gooden"},
+  {id:"m29",name:"Carlyn Castaneda",team:"ca",email:"carlyncastaneda@gmail.com",active:true,balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0},role:"ic",lead:"Deander Gooden"},
+  {id:"m30",name:"Mary Cauzon",team:"ph",email:"marycauzon@gmail.com",active:true,balances:{"Paid Sick Leave":0,"Vacation / PTO":0,"Unpaid Leave":0},role:"ic",lead:"Deander Gooden"}
 ];
-/* Directory records (employee_profiles). In live mode these come from Supabase; this
-   array backs demo mode and anything added in-app through "Add person" in the Directory. */
 let DEMO_PROFILES=[
-  {id:"p-owner",name:"Deander Gooden",status:"Active",class:"W-2",team:"ca",role:"Owner",email:"dgooden@mandmsolutionsllc.com",phone:"",pay_rate:"50",pay_schedule:"Bi-weekly",dob:"April 12",work_setup:"onsite",docs:{pct:0},training:{},sick:{method:"Frontload (40 hrs)",accrued:0,used:0,balance:40},notes:"Owner. Record created from QuickBooks details on 2026-07-15."}
+  {id:"p-owner",name:"Deander Gooden",status:"Active",class:"W-2",team:"ca",role:"Owner",lead:"",email:"dgooden@mandmsolutionsllc.com",phone:"",pay_rate:"50",pay_schedule:"Bi-weekly",dob:"April 12",work_setup:"onsite",docs:{pct:0},training:{},sick:{method:"Frontload (40 hrs)",accrued:0,used:0,balance:40},notes:"Owner."},
+  {id:"p1",name:"Maribel Rodas",status:"Active",class:"W-2",team:"ca",role:"Team Lead",lead:"Deander Gooden",email:"Maribelrodas99@gmail.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"onsite",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p2",name:"Gilma Rodas",status:"Active",class:"W-2",team:"ca",role:"Rank & File",lead:"Maribel Rodas",email:"gilmajovita@gmail.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"onsite",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p3",name:"Kimberly Cifuentes",status:"Active",class:"W-2",team:"ca",role:"Rank & File",lead:"Maribel Rodas",email:"Kcifuentes988@gmail.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"onsite",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p4",name:"Migdalia Calderon",status:"Active",class:"W-2",team:"ca",role:"Rank & File",lead:"Maribel Rodas",email:"Migdalirodas77@gmail.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"onsite",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p8",name:"Maria Cardona Rivas",status:"Active",class:"W-2",team:"ca",role:"Team Lead",lead:"Deander Gooden",email:"mariaccardona295@gmail.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"onsite",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p10",name:"Yeymi Calderon",status:"Active",class:"W-2",team:"ca",role:"Rank & File",lead:"Maria Cardona Rivas",email:"yeymideleon95@gmail.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"onsite",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p11",name:"Adaias Lopez",status:"Active",class:"W-2",team:"ca",role:"Rank & File",lead:"Maria Cardona Rivas",email:"adaias21@gmail.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"onsite",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p12",name:"Yolanda Gomez",status:"Active",class:"W-2",team:"ca",role:"Team Lead",lead:"Deander Gooden",email:"yolandagom2407@gmail.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"onsite",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p13",name:"Vilma Morelas",status:"Active",class:"W-2",team:"ca",role:"Rank & File",lead:"Yolanda Gomez",email:"Vilmamorales169@gmail.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"onsite",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p14",name:"Consuelo Gil",status:"Active",class:"W-2",team:"ca",role:"Rank & File",lead:"Karla Ramirez",email:"c27gil71@gmail.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"onsite",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p15",name:"Karla Ramirez",status:"Active",class:"W-2",team:"ca",role:"Team Lead",lead:"Deander Gooden",email:"Karlafab77@outlook.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"onsite",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p16",name:"Didimo Garcia",status:"Separated",class:"W-2",team:"ca",role:"Rank & File",lead:"Nicholas Gribens",email:"",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"onsite",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p17",name:"Junior Lopez",status:"Active",class:"W-2",team:"ca",role:"Rank & File",lead:"Nicholas Gribens",email:"Pelonrx100@gmail.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"onsite",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p18",name:"Rafael Manzo",status:"Active",class:"W-2",team:"ca",role:"Team Lead",lead:"Deander Gooden",email:"rafamanzo82@yahoo.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"onsite",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p19",name:"Areli Salinas",status:"Active",class:"W-2",team:"ca",role:"Rank & File",lead:"Rafael Manzo",email:"arelisalinas0423@gmail.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"onsite",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p20",name:"Iremias Carvalho",status:"Active",class:"1099",team:"ca",role:"Team Lead",lead:"Deander Gooden",email:"Iremiascarvalho@hotmail.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"onsite",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p21",name:"Josefa Lopez",status:"Active",class:"W-2",team:"ca",role:"Rank & File",lead:"Iremias Carvalho",email:"JosefaReina2025@yahoo.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"onsite",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p22",name:"Floridama Alverez",status:"Active",class:"W-2",team:"ca",role:"Rank & File",lead:"Iremias Carvalho",email:"Florylopez171@gmail.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"onsite",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p23",name:"Nicolle Nahomy Hernandez Cruz",status:"Active",class:"W-2",team:"ca",role:"Rank & File",lead:"Maria Cardona Rivas",email:"nh9389870@gmail.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"onsite",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p24",name:"Lester Pinula",status:"Active",class:"W-2",team:"ca",role:"Rank & File",lead:"Nicholas Gribens",email:"lesterpinula@gmail.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"onsite",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p25",name:"Nicholas Gribens",status:"Active",class:"W-2",team:"ca",role:"Team Lead",lead:"Deander Gooden",email:"nicholasgribens@gmail.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"onsite",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p26",name:"Kentaroh Kimura",status:"Active",class:"1099",team:"ph",role:"Independent Contractor",lead:"Deander Gooden",email:"kimurakentaroh@gmail.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"remote",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p27",name:"Rosemarie Salazar",status:"Active",class:"1099",team:"ph",role:"Independent Contractor",lead:"Deander Gooden",email:"rosemarie.salazar0505@gmail.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"remote",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p28",name:"Jawad Khattak",status:"Active",class:"1099",team:"ph",role:"Independent Contractor",lead:"Deander Gooden",email:"Jawadkhattak2003@gmail.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"remote",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p29",name:"Carlyn Castaneda",status:"Active",class:"1099",team:"ca",role:"Independent Contractor",lead:"Deander Gooden",email:"carlyncastaneda@gmail.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"onsite",docs:{pct:0},training:{},sick:{},notes:""},
+  {id:"p30",name:"Mary Cauzon",status:"Active",class:"1099",team:"ph",role:"Independent Contractor",lead:"Deander Gooden",email:"marycauzon@gmail.com",phone:"",pay_rate:"",pay_schedule:"",dob:"",work_setup:"remote",docs:{pct:0},training:{},sick:{},notes:""}
+];
+let DEMO_ACCOUNTS=[
+  {id:"ac1",name:"Maribel Rodas",email:"maribelrodas99@gmail.com",setup_code:"3QUGAH",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac2",name:"Gilma Rodas",email:"gilmajovita@gmail.com",setup_code:"9WN8AW",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac3",name:"Kimberly Cifuentes",email:"kcifuentes988@gmail.com",setup_code:"YZZVTB",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac4",name:"Migdalia Calderon",email:"migdalirodas77@gmail.com",setup_code:"K3Z3T2",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac8",name:"Maria Cardona Rivas",email:"mariaccardona295@gmail.com",setup_code:"P2G44Z",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac10",name:"Yeymi Calderon",email:"yeymideleon95@gmail.com",setup_code:"EBP4HV",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac11",name:"Adaias Lopez",email:"adaias21@gmail.com",setup_code:"GM4QDY",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac12",name:"Yolanda Gomez",email:"yolandagom2407@gmail.com",setup_code:"6QYJQR",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac13",name:"Vilma Morelas",email:"vilmamorales169@gmail.com",setup_code:"DEKC6U",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac14",name:"Consuelo Gil",email:"c27gil71@gmail.com",setup_code:"6UFZ5W",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac15",name:"Karla Ramirez",email:"karlafab77@outlook.com",setup_code:"ZJ566T",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac17",name:"Junior Lopez",email:"pelonrx100@gmail.com",setup_code:"S44B6H",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac18",name:"Rafael Manzo",email:"rafamanzo82@yahoo.com",setup_code:"755YJA",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac19",name:"Areli Salinas",email:"arelisalinas0423@gmail.com",setup_code:"KQEM2S",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac20",name:"Iremias Carvalho",email:"iremiascarvalho@hotmail.com",setup_code:"FA4QXD",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac21",name:"Josefa Lopez",email:"josefareina2025@yahoo.com",setup_code:"H7C6EA",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac22",name:"Floridama Alverez",email:"florylopez171@gmail.com",setup_code:"BF5V36",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac23",name:"Nicolle Nahomy Hernandez Cruz",email:"nh9389870@gmail.com",setup_code:"BCDJ2H",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac24",name:"Lester Pinula",email:"lesterpinula@gmail.com",setup_code:"72VZ5H",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac25",name:"Nicholas Gribens",email:"nicholasgribens@gmail.com",setup_code:"HDCMDD",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac26",name:"Kentaroh Kimura",email:"kimurakentaroh@gmail.com",setup_code:"UMDUS5",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac27",name:"Rosemarie Salazar",email:"rosemarie.salazar0505@gmail.com",setup_code:"3NM92X",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac28",name:"Jawad Khattak",email:"jawadkhattak2003@gmail.com",setup_code:"QK7T4P",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac29",name:"Carlyn Castaneda",email:"carlyncastaneda@gmail.com",setup_code:"J8RD2M",status:"pending",pin_hash:null,bio_enrolled:false},
+  {id:"ac30",name:"Mary Cauzon",email:"marycauzon@gmail.com",setup_code:"W5CY6L",status:"pending",pin_hash:null,bio_enrolled:false}
 ];
 let DEMO_REQ=[
-  {id:"r1",employee_id:"e1",employee_name:"Maribel Rodas",team:"ca",type:"Vacation / PTO",start_date:"2026-07-06",end_date:"2026-07-07",half_day:false,days:2,reason:"Family event",status:"pending",created_at:"2026-06-27T09:00:00Z"},
-  {id:"r2",employee_id:"e5",employee_name:"Fred Rocha",team:"ca",type:"Paid Sick Leave",start_date:"2026-07-01",end_date:"2026-07-01",half_day:false,days:1,reason:"Doctor visit",status:"pending",created_at:"2026-06-28T02:00:00Z"}
+  {id:"r1",employee_id:"m2",employee_name:"Gilma Rodas",team:"ca",type:"Paid Sick Leave",start_date:"2026-07-17",end_date:"2026-07-17",half_day:false,days:1,reason:"Doctor visit",status:"pending",created_at:"2026-07-15T09:00:00Z"}
 ];
 let DEMO_ATT=(()=>{
-  const out=[]; 
-  const mk=(id,name,dayOffset,inH,outH,site)=>{
-    const d=new Date(); d.setDate(d.getDate()-dayOffset);
-    const ci=new Date(d); ci.setHours(inH,0,0,0); const co=new Date(d); co.setHours(outH,0,0,0);
-    out.push({id:"a"+out.length,employee_id:id,employee_name:name,team:"ca",clock_in:ci.toISOString(),clock_out:co.toISOString(),hours:outH-inH,site,lat:null,lng:null});
-  };
-  const openNow=(id,name,inH,site)=>{ const ci=new Date(); ci.setHours(inH,0,0,0); out.push({id:"a"+out.length,employee_id:id,employee_name:name,team:"ca",clock_in:ci.toISOString(),clock_out:null,hours:null,site,lat:null,lng:null}); };
-  mk("e1","Maribel Rodas",1,7,16,"Canal St residence");
-  mk("e1","Maribel Rodas",2,7,17,"Novato office");
-  mk("e2","Gilma Rodas",1,8,18,"San Rafael clinic");
-  mk("e3","Kimberly Cifuentes",1,7,15,"Richmond home");
-  mk("e5","Fred Rocha",2,6,14,"San Pablo site");
-  openNow("e6","Mercedes Reyes Gallina",8,"Corte Madera home");
+  const out=[];
+  const mk=(id,name,team,dayOffset,inH,outH,site)=>{ const d=new Date(); d.setDate(d.getDate()-dayOffset); const ci=new Date(d); ci.setHours(inH,0,0,0); const co=new Date(d); co.setHours(outH,0,0,0); out.push({id:"a"+out.length,employee_id:id,employee_name:name,team,clock_in:ci.toISOString(),clock_out:co.toISOString(),hours:outH-inH,site,lat:null,lng:null}); };
+  const openNow=(id,name,team,inH,site)=>{ const ci=new Date(); ci.setHours(inH,0,0,0); out.push({id:"a"+out.length,employee_id:id,employee_name:name,team,clock_in:ci.toISOString(),clock_out:null,hours:null,site,lat:null,lng:null}); };
+  openNow("m1","Maribel Rodas","ca",7,"Canal St residence");
+  openNow("m2","Gilma Rodas","ca",8,"San Rafael clinic");
+  openNow("m3","Kimberly Cifuentes","ca",8,"Richmond home");
+  openNow("m8","Maria Cardona Rivas","ca",7,"Novato office");
+  openNow("m10","Yeymi Calderon","ca",8,"Corte Madera home");
+  openNow("m12","Yolanda Gomez","ca",7,"Larkspur site");
+  openNow("m19","Areli Salinas","ca",9,"San Anselmo home");
+  openNow("m25","Nicholas Gribens","ca",7,"Mill Valley office");
+  openNow("m17","Junior Lopez","ca",8,"Mill Valley office");
+  openNow("m26","Kentaroh Kimura","ph",9,"Remote");
+  mk("m1","Maribel Rodas","ca",1,7,16,"Canal St residence");
+  mk("m2","Gilma Rodas","ca",1,8,17,"San Rafael clinic");
+  mk("m8","Maria Cardona Rivas","ca",1,7,16,"Novato office");
+  mk("m19","Areli Salinas","ca",2,9,15,"San Anselmo home");
   return out;
 })();
 
@@ -849,12 +912,12 @@ const DB={
   async clockIn(rec){ if(LIVE){const{error}=await sb.from("attendance").insert(rec);if(error)throw error;return;} DEMO_ATT.push({...rec,id:uid(),hours:null,clock_out:null}); },
   async clockOut(id,clock_out,hours){ if(LIVE){const{error}=await sb.from("attendance").update({clock_out,hours}).eq("id",id);if(error)throw error;return;} const a=DEMO_ATT.find(x=>x.id===id); if(a){a.clock_out=clock_out;a.hours=hours;} },
   async updateEntry(id,patch){ if(LIVE){const{error}=await sb.from("attendance").update(patch).eq("id",id);if(error)throw error;return;} const a=DEMO_ATT.find(x=>x.id===id); if(a)Object.assign(a,patch); },
-  async accounts(){ if(!LIVE)return[]; const{data,error}=await sb.from("hub_accounts").select("*").order("name"); if(error)throw error; return data||[]; },
-  async accountByLogin(q){ if(!LIVE)return null; const isEmail=q.indexOf("@")>=0; const col=isEmail?"email":"setup_code"; const val=isEmail?q.toLowerCase():q.toUpperCase(); const{data,error}=await sb.from("hub_accounts").select("*").eq(col,val).limit(1); if(error)throw error; return (data&&data[0])||null; },
-  async accountById(id){ if(!LIVE)return null; const{data,error}=await sb.from("hub_accounts").select("*").eq("id",id).limit(1); if(error)throw error; return (data&&data[0])||null; },
-  async addAccount(o){ if(!LIVE)return null; const{data,error}=await sb.from("hub_accounts").insert(o).select(); if(error)throw error; return data&&data[0]; },
-  async updateAccount(id,patch){ if(!LIVE)return; const{error}=await sb.from("hub_accounts").update(patch).eq("id",id); if(error)throw error; },
-  async deleteAccount(id){ if(!LIVE)return; const{error}=await sb.from("hub_accounts").delete().eq("id",id); if(error)throw error; }
+  async accounts(){ if(!LIVE)return clone(DEMO_ACCOUNTS).sort((a,b)=>(a.name||"").localeCompare(b.name||"")); const{data,error}=await sb.from("hub_accounts").select("*").order("name"); if(error)throw error; return data||[]; },
+  async accountByLogin(q){ if(!LIVE){ const isE=q.indexOf("@")>=0; const v=isE?q.toLowerCase():q.toUpperCase(); return DEMO_ACCOUNTS.find(a=>isE?(a.email||"").toLowerCase()===v:(a.setup_code||"")===v)||null; } const isEmail=q.indexOf("@")>=0; const col=isEmail?"email":"setup_code"; const val=isEmail?q.toLowerCase():q.toUpperCase(); const{data,error}=await sb.from("hub_accounts").select("*").eq(col,val).limit(1); if(error)throw error; return (data&&data[0])||null; },
+  async accountById(id){ if(!LIVE)return DEMO_ACCOUNTS.find(a=>a.id===id)||null; const{data,error}=await sb.from("hub_accounts").select("*").eq("id",id).limit(1); if(error)throw error; return (data&&data[0])||null; },
+  async addAccount(o){ if(!LIVE){ const rec={...o,id:uid()}; DEMO_ACCOUNTS.push(rec); return rec; } const{data,error}=await sb.from("hub_accounts").insert(o).select(); if(error)throw error; return data&&data[0]; },
+  async updateAccount(id,patch){ if(!LIVE){ const a=DEMO_ACCOUNTS.find(x=>x.id===id); if(a)Object.assign(a,patch); return; } const{error}=await sb.from("hub_accounts").update(patch).eq("id",id); if(error)throw error; },
+  async deleteAccount(id){ if(!LIVE){ DEMO_ACCOUNTS=DEMO_ACCOUNTS.filter(x=>x.id!==id); return; } const{error}=await sb.from("hub_accounts").delete().eq("id",id); if(error)throw error; }
 };
 
 /* ============================================================ STATE ============================================================ */
@@ -1114,6 +1177,10 @@ function dirAddModal(){
       <div class="field"><label>Phone</label><input class="f-input" type="tel" id="dpPhone" placeholder="(555) 555-5555"/></div>
     </div>
     <div class="field"><label>Work setup</label><select class="f-input" id="dpWs"><option value="onsite">Onsite / Field</option><option value="remote">Remote</option></select></div>
+    <div ${gs}>
+      <div class="field"><label>On the team board as</label><select class="f-input" id="dpTeamRole"><option value="rf">Crew member</option><option value="lead">Team lead</option><option value="ic">Independent contractor</option><option value="">Not on a team</option></select></div>
+      <div class="field"><label>Team lead / supervisor</label><input class="f-input" id="dpLead" list="dpLeadList" placeholder="e.g. Maribel Rodas"><datalist id="dpLeadList">${(EMP||[]).filter(e=>e.role==="lead").map(e=>`<option value="${esc(e.name)}">`).join("")}</datalist></div>
+    </div>
     <label style="display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--sub);margin:8px 0 2px;cursor:pointer"><input type="checkbox" id="dpRoster" checked style="width:16px;height:16px"/> Also add to the clock roster (Time off, Clock, Timekeeping)</label>
     <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="dirAddSave()"><i class="ti ti-user-plus"></i> ${t("Add")}</button></div>`;
   openModal(); dpTeamSync();
@@ -1126,17 +1193,18 @@ async function dirAddSave(){
   const cls=g("dpClass")||(team==="ph"?"1099":"W-2");
   const role=g("dpRole"), hire=g("dpHire"), rate=g("dpRate"), sched=g("dpSched");
   const email=g("dpEmail"), phone=g("dpPhone"), ws=g("dpWs")||"onsite";
+  const teamRole=g("dpTeamRole"), lead=g("dpLead");
   const bm=g("dpBmonth"), bd=parseInt(g("dpBday"),10);
   const mNames=["January","February","March","April","May","June","July","August","September","October","November","December"];
   let bday="",dob="";
   if(bm&&bd>=1&&bd<=31){ bday=bm+"-"+String(bd).padStart(2,"0"); dob=mNames[parseInt(bm,10)-1]+" "+bd; }
   const toRoster=(($("#dpRoster")||{}).checked)!==false;
-  const profile={name,status:"Active",class:cls,team,role:role||null,email:email||null,phone:phone||null,pay_rate:rate||null,pay_schedule:sched||null,dob:dob||null,work_setup:ws,docs:{pct:0},training:{},sick:cls==="W-2"?{method:"Frontload (40 hrs)",accrued:0,used:0,balance:40}:{},notes:"Added in the Hub on "+new Date().toISOString().slice(0,10)+"."};
+  const profile={name,status:"Active",class:cls,team,role:role||null,lead:lead||null,email:email||null,phone:phone||null,pay_rate:rate||null,pay_schedule:sched||null,dob:dob||null,work_setup:ws,docs:{pct:0},training:{},sick:cls==="W-2"?{method:"Frontload (40 hrs)",accrued:0,used:0,balance:40}:{},notes:"Added in the Hub on "+new Date().toISOString().slice(0,10)+"."};
   try{
     await DB.addProfile(profile);
     if(toRoster){
       const balances={}; ((CONFIG.teams[team]||{}).leaveTypes||[]).forEach(lt=>balances[lt]=0);
-      const emp={name,team,email:email||"",active:true,balances};
+      const emp={name,team,email:email||"",active:true,balances,role:teamRole||null,lead:lead||null};
       if(hire) emp.hire_date=hire; if(bday) emp.bday=bday;
       await DB.addEmployee(emp);
     }
@@ -1170,7 +1238,7 @@ function empPanel(i){
   const workSetup = sepdWS ? "" : (canEdit
     ? `<div class="kv kv-e"><i class="ti ti-building-community"></i><span class="k">${t("Work setup")}</span><span class="v"><span class="ws-seg">${wsBtn("onsite","ti-map-pin",t("Onsite / Field"))}${wsBtn("remote","ti-home",t("Remote"))}</span></span></div>`
     : (ws?kv("ti-building-community",t("Work setup"),ws==="remote"?t("Remote"):t("Onsite / Field")):""));
-  const employment = kv("ti-briefcase","Role",p.role)+kv("ti-id-badge-2","Class",p.class)+workSetup+kv("ti-calendar","Pay schedule",p.pay_schedule)+kv("ti-coin","Pay rate",pay);
+  const employment = kv("ti-briefcase","Role",p.role)+(p.lead?kv("ti-user-up",t("Reports to"),p.lead):"")+kv("ti-id-badge-2","Class",p.class)+workSetup+kv("ti-calendar","Pay schedule",p.pay_schedule)+kv("ti-coin","Pay rate",pay);
   const MNAMES=["January","February","March","April","May","June","July","August","September","October","November","December"];
   const rosterMatch=(EMP||[]).find(x=>normName(x.name)===normName(p.name));
   const hireRaw=(p.hire_date||DIR_HIRE[dirNorm(p.name)]||(rosterMatch&&rosterMatch.hire_date)||"");
@@ -2657,6 +2725,7 @@ async function atEndBreak(id){
 
 /* ----- attendance admin ----- */
 function atAdmin(){
+  if(!state.presenceView)state.presenceView="team";
   const openNow=ATT.filter(a=>!a.clock_out);
   const today=new Date().toISOString().slice(0,10);
   const todays=ATT.filter(a=>a.clock_in.slice(0,10)===today);
@@ -2668,7 +2737,12 @@ function atAdmin(){
   $("#view").innerHTML=pageHead("Timekeeping","Time, attendance & payroll","Live status, today's activity, and a timesheet you can export for payroll, with a California overtime breakdown.")+
     `<div style="display:flex;gap:8px;margin-bottom:18px"><button class="linkbtn" onclick="goModule('clock')"><i class="ti ti-arrow-left"></i> Clock screen</button><button class="linkbtn" onclick="showQR()" style="margin-left:auto"><i class="ti ti-qrcode"></i> Clock-in QR</button></div>
     <div class="grid2" style="align-items:start">
-      <div class="card"><div class="section-label">On the clock now (${openNow.length})</div>${liveHtml}</div>
+      <div class="card">
+        <div class="tp-tools"><div class="section-label" style="margin:0">On the clock now (${openNow.length})</div>
+          <div class="ts-toggle"><button class="${state.presenceView!=='list'?'on':''}" onclick="state.presenceView='team';renderAttendance()">By team</button><button class="${state.presenceView==='list'?'on':''}" onclick="state.presenceView='list';renderAttendance()">Everyone</button></div>
+        </div>
+        ${state.presenceView==='list'?liveHtml:`<div class="tp-wrap">${teamBoards()}</div>`}
+      </div>
       <div class="card"><div class="section-label">Today (${todays.length} entr${todays.length===1?'y':'ies'})</div>${todays.length?todays.map(atRow).join(""):`<div class="empty" style="padding:24px"><i class="ti ti-calendar"></i><p>No entries today yet.</p></div>`}</div>
     </div>
     <div class="card" style="margin-top:20px">
@@ -2691,6 +2765,27 @@ function atAdmin(){
 }
 function sinceText(iso){const m=Math.floor((Date.now()-new Date(iso))/60000);if(m<60)return m+"m";const h=Math.floor(m/60);return h+"h "+(m%60)+"m";}
 function mapLink(a){ return (a.lat&&a.lng)?` · <a href="https://www.google.com/maps?q=${a.lat},${a.lng}" target="_blank" rel="noopener" style="color:var(--accent)">map</a>`:""; }
+function teamBoards(){
+  const active=(EMP||[]).filter(e=>e.active!==false);
+  const openBy={}; (ATT||[]).filter(a=>!a.clock_out).forEach(a=>{ if(!openBy[a.employee_id])openBy[a.employee_id]=a; });
+  const leads=active.filter(e=>e.role==="lead").sort((a,b)=>a.name.localeCompare(b.name));
+  const groups=[];
+  leads.forEach(l=>{ const crew=[l].concat(active.filter(e=>e.role==="rf"&&(e.lead||"")===l.name).sort((a,b)=>a.name.localeCompare(b.name))); groups.push({title:l.name+"'s team",members:crew}); });
+  const ics=active.filter(e=>e.role==="ic").sort((a,b)=>a.name.localeCompare(b.name));
+  if(ics.length) groups.push({title:"Independent contractors",members:ics});
+  const claimed=new Set(); groups.forEach(g=>g.members.forEach(m=>claimed.add(m.id)));
+  const others=active.filter(e=>!claimed.has(e.id)&&e.role!=="owner").sort((a,b)=>a.name.localeCompare(b.name));
+  if(others.length) groups.push({title:"Not on a team yet",members:others});
+  if(!groups.length) return `<div class="empty" style="padding:24px"><i class="ti ti-users"></i><p>No teams set up yet. Set each person's team lead in the Directory.</p></div>`;
+  return groups.map(g=>{
+    const present=g.members.filter(m=>openBy[m.id]).length;
+    const cls=present===0?"none":(present===g.members.length?"full":"");
+    const rows=g.members.map(m=>{ const o=openBy[m.id]; const on=!!o;
+      return `<div class="tp-row"><span class="tp-dot ${on?"on":""}"></span><div class="avatar" style="width:26px;height:26px;font-size:10px;background:${avatarColor(m.team)}">${initials(m.name)}</div><div class="tp-nm">${esc(m.name)}${m.role==="lead"?'<span class="tp-lead">LEAD</span>':""}</div><span class="tp-st ${on?"on":""}">${on?("On the clock "+fmtTime(o.clock_in)):t("Not clocked in")}</span></div>`;
+    }).join("");
+    return `<div class="tp-card"><div class="tp-head"><span class="tp-title">${esc(g.title)}</span><span class="tp-count ${cls}">${present} / ${g.members.length} ${t("on the clock")}</span></div>${rows}</div>`;
+  }).join("");
+}
 function atRow(a){const km={travel:"travel",office:"office",remote:"remote"};const tv=km[a.kind]?` · <span style="color:var(--warn)">${km[a.kind]}</span>`:"";return `<div class="req" style="padding:11px 13px;margin-bottom:9px"><div style="display:flex;align-items:center;gap:11px"><div class="avatar" style="width:30px;height:30px;font-size:11px;background:${avatarColor(a.team)}">${initials(a.employee_name)}</div><div style="flex:1"><div style="font-size:13.5px;font-weight:600">${esc(a.employee_name)}</div><div style="font-size:12px;color:var(--faint)">${fmtTime(a.clock_in)} ${a.clock_out?"→ "+fmtTime(a.clock_out):"→ ..."}${a.site?" · "+esc(a.site):""}${tv}${mapLink(a)}</div></div><span class="days-tag">${a.clock_out?a.hours+"h":'<span style="color:var(--ok)">active</span>'}</span></div></div>`;}
 
 function timesheetData(){
