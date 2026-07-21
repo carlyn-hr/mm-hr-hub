@@ -1046,7 +1046,7 @@ function enterKiosk(){
 function roleName(){ return state.isSuper?"Super admin":(state.isAdmin?"Admin":"Staff"); }
 function applyRole(){
   $("#roleLabel").textContent=roleName();
-  const tk=$("#navTimekeeping"); if(tk) tk.style.display=state.isSuper?"flex":"none";
+  const tk=$("#navTimekeeping"); if(tk) tk.style.display=state.isAdmin?"flex":"none";
   const dr=$("#navDirectory"); if(dr) dr.style.display=state.isSuper?"flex":"none";
   const rc=$("#navRecruit"); if(rc) rc.style.display=state.isSuper?"flex":"none";
   const ib=$("#navInbox"); if(ib) ib.style.display=state.isSuper?"flex":"none";
@@ -1061,7 +1061,7 @@ function goModule(m){
   $("#searchWrap").style.display = m==="policies" ? "flex" : "none";
   if(m==="policies"){ $("#searchInput").value=""; }
   $("#roleLabel").textContent = roleName();
-  if(m==="attendance"){ state.atView = state.isSuper ? "admin" : "clock"; }
+  if(m==="attendance"){ state.atView = state.isAdmin ? "admin" : "clock"; }
   render();
 }
 function goHome(){ state.pol.view="home"; state.query=""; const si=$("#searchInput"); if(si)si.value=""; goModule("policies"); }
@@ -1079,7 +1079,7 @@ function tryAdmin(){
   else if(v===CONFIG.superPasscode){ state.isAdmin=true; state.isSuper=true; state.isOwner=false; }
   else if(v===CONFIG.adminPasscode){ state.isAdmin=true; state.isSuper=false; state.isOwner=false; }
   else { const g=$("#gatePass"); g.style.borderColor="var(--bad)"; g.value=""; g.placeholder="Wrong passcode"; return; }
-  applyRole(); closeModal(); if(state.module==="attendance")state.atView=state.isSuper?"admin":"clock"; render();
+  applyRole(); closeModal(); if(state.module==="attendance")state.atView=state.isAdmin?"admin":"clock"; render();
 }
 function openNav(){$("#sidebar").classList.add("open");$("#navScrim").classList.add("open");}
 function closeNav(){$("#sidebar").classList.remove("open");$("#navScrim").classList.remove("open");}
@@ -1257,7 +1257,14 @@ function empPanel(i){
   const workSetup = sepdWS ? "" : (canEdit
     ? `<div class="kv kv-e"><i class="ti ti-building-community"></i><span class="k">${t("Work setup")}</span><span class="v"><span class="ws-seg">${wsBtn("onsite","ti-map-pin",t("Onsite / Field"))}${wsBtn("remote","ti-home",t("Remote"))}</span></span></div>`
     : (ws?kv("ti-building-community",t("Work setup"),ws==="remote"?t("Remote"):t("Onsite / Field")):""));
-  const employment = kv("ti-briefcase","Role",p.role)+(p.lead?kv("ti-user-up",t("Reports to"),p.lead):"")+kv("ti-id-badge-2","Class",p.class)+workSetup+kv("ti-calendar","Pay schedule",p.pay_schedule)+kv("ti-coin","Pay rate",pay);
+  const employment = kv("ti-briefcase","Role",p.role)+kv("ti-id-badge-2","Class",p.class)+workSetup+kv("ti-calendar","Pay schedule",p.pay_schedule)+kv("ti-coin","Pay rate",pay);
+  const roleCode=(rosterMatch&&rosterMatch.role)||"";
+  const leadOpts=(EMP||[]).filter(e=>e.role==="lead").map(e=>`<option value="${esc(e.name)}">`).join("");
+  const teamBlock = canEdit ? (
+      `<div class="kv kv-e"><i class="ti ti-user-up"></i><span class="k">${t("Team lead")}</span><input class="kv-in" id="edLead" list="edLeadList" value="${esc(p.lead||"")}" placeholder="${t("e.g. Maribel Rodas")}" oninput="empTeamDirty(${i})"><datalist id="edLeadList">${leadOpts}</datalist></div>`
+    + `<div class="kv kv-e"><i class="ti ti-users"></i><span class="k">${t("On the team board as")}</span><select class="kv-in" id="edTRole" onchange="empTeamDirty(${i})"><option value="">-</option><option value="rf"${roleCode==="rf"?" selected":""}>${t("Crew member")}</option><option value="lead"${roleCode==="lead"?" selected":""}>${t("Team lead")}</option><option value="ic"${roleCode==="ic"?" selected":""}>${t("Independent contractor")}</option></select></div>`
+    + `<button class="btn btn-primary btn-sm" id="etSave" style="margin-top:10px;display:none" onclick="empTeamSave(${i})"><i class="ti ti-device-floppy"></i> ${t("Save team")}</button>`
+  ) : (p.lead?kv("ti-user-up",t("Reports to"),p.lead):kvMuted("ti-user-up",t("Reports to"),t("Not set")));
   const MNAMES=["January","February","March","April","May","June","July","August","September","October","November","December"];
   const rosterMatch=(EMP||[]).find(x=>normName(x.name)===normName(p.name));
   const hireRaw=(p.hire_date||DIR_HIRE[dirNorm(p.name)]||(rosterMatch&&rosterMatch.hire_date)||"");
@@ -1293,7 +1300,7 @@ function empPanel(i){
   const files=Array.isArray(p.files)?p.files:[];
   const fileRows = files.length ? files.map((f,fi)=>`<div class="file-row"><i class="ti ti-file"></i><a href="${esc(f.url)}" target="_blank" rel="noopener" class="file-link">${esc(f.label||f.url)}</a>${canEdit?`<button class="ic-btn" title="Remove" onclick="empFileRemove(${i},${fi})"><i class="ti ti-x"></i></button>`:""}</div>`).join("") : `<div class="kv"><span class="v muted">${t("No documents attached")}</span></div>`;
   const filesBlock = fileRows + (canEdit?`<button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="empFileAdd(${i})"><i class="ti ti-paperclip"></i> ${t("Attach a document")}</button>`:"");
-  $("#pBody").innerHTML = sec("Contact",contact)+sec("Employment",employment)+sec(t("Key dates"),keyDates)+sec("Pay &amp; identity",identity)+sec("Emergency",emerg)+sec("Documents",docBlock)+sec("Files",filesBlock)+sec("Training",training||kvMuted("ti-clipboard","Status","Not tracked yet"))+sec("Sick / PTO",sick)+(notes?sec("Notes",notes):"");
+  $("#pBody").innerHTML = sec("Contact",contact)+sec("Employment",employment)+sec(t("Team"),teamBlock)+sec(t("Key dates"),keyDates)+sec("Pay &amp; identity",identity)+sec("Emergency",emerg)+sec("Documents",docBlock)+sec("Files",filesBlock)+sec("Training",training||kvMuted("ti-clipboard","Status","Not tracked yet"))+sec("Sick / PTO",sick)+(notes?sec("Notes",notes):"");
   const sepd=(p.status||"").toLowerCase().indexOf("separat")===0;
   const empActions = canEdit ? (sepd
     ? `<button class="btn btn-ghost" style="width:100%" onclick="empReactivate(${i})"><i class="ti ti-user-check"></i> Reactivate this employee</button>`
@@ -1312,6 +1319,23 @@ async function empContactSave(i){
   p.email=email; p.phone=phone;
   if(btn){ btn.disabled=false; btn.style.display="none"; }
   toast(t("Contact saved"));
+}
+function empTeamDirty(i){ const b=$("#etSave"); if(b) b.style.display=""; }
+async function empTeamSave(i){
+  const p=PROFILES[i]; if(!p) return;
+  const lead=(($("#edLead")||{}).value||"").trim();
+  const trole=(($("#edTRole")||{}).value||"").trim();
+  const btn=$("#etSave"); if(btn) btn.disabled=true;
+  let colMissing=false;
+  try{ await DB.updateProfile(p.id,{lead:lead||null}); }
+  catch(e){ const m=((e&&(e.message||e.details))||"")+""; if(/column|schema|lead|PGRST/i.test(m)) colMissing=true; else { if(btn)btn.disabled=false; toast("Could not save: "+m); return; } }
+  const em=(EMP||[]).find(x=>normName(x.name)===normName(p.name));
+  if(em){ try{ await DB.updateEmployee(em.id,{lead:lead||null,role:trole||null}); }catch(e){ const m=((e&&(e.message||e.details))||"")+""; if(/column|schema|lead|role|PGRST/i.test(m)) colMissing=true; } }
+  p.lead=lead||null;
+  const em2=(EMP||[]).find(x=>normName(x.name)===normName(p.name)); if(em2){ em2.lead=lead||null; if(trole)em2.role=trole; }
+  try{ await refresh(); }catch(e){}
+  empPanel(i);
+  toast(colMissing?"Saved here, but add the team columns in Supabase to keep it":"Team saved");
 }
 function empDatesDirty(i){ const b=$("#edSave"); if(b) b.style.display=""; }
 async function empDatesSave(i){
@@ -2261,7 +2285,7 @@ function renderToolkit(){
 }
 
 const SOP_ARTICLES=[
-  {t:"Signing in and roles",a:"All",b:"<p>The Hub has three levels. Everyone (staff) sees Policies, Clock in and out, Time off, HR Forms, Training, Onboarding, and this SOP Library, with no passcode. Admin adds the HR Dashboard and the Manager Toolkit. Super admin adds Timekeeping, Directory, Recruitment, and the HR Inbox, and can change employee records.</p><p>Admin and super admin sign in from the lock button at the bottom of the sidebar and enter the passcode. The same button signs you out. Staff open the Hub with their own email or setup code, then a passcode.</p>"},
+  {t:"Signing in and roles",a:"All",b:"<p>The Hub has three levels. Everyone (staff) sees Policies, Clock in and out, Time off, HR Forms, Training, Onboarding, and this SOP Library, with no passcode. Admin adds the HR Dashboard, the Manager Toolkit, and Timekeeping (view timesheets and export, but clearing punches is super admin only). Super admin adds the Directory, Recruitment, and the HR Inbox, and can change employee records.</p><p>Admin and super admin sign in from the lock button at the bottom of the sidebar and enter the passcode. The same button signs you out. Staff open the Hub with their own email or setup code, then a passcode.</p>"},
   {t:"For staff: the basics",a:"Staff",b:"<p>Clock in and out from the Clock tile. Pick Onsite / Field or Remote, choose your name, and tap Clock in. Field clock-ins record your location so the office can confirm you are on site.</p><p>Request time off from the Time off tile. Pick the dates and the type, and the office approves it. Read your policies from the Policies tile and open forms and the handbook from HR Forms.</p>"},
   {t:"Approving time off and balances",a:"Admin",b:"<p>Open Time off and switch to Manager view. Pending requests show who, what type, the dates, and the balance impact. Approve or Decline. Approving a sick request deducts the hours (8 per day) from that person's bank. You can Revoke an approval to add the hours back.</p><p>To set a balance directly, open People, then Edit next to a person, and change the sick hours.</p>"},
   {t:"Managing sick-leave balances",a:"Admin",b:"<p>Sick leave is frontloaded at 40 hours (5 days) a year and tracked in hours. New hires start at 0 and become eligible on their 90th day. The HR Dashboard flags anyone past 90 days who still needs their 40 set. Set it in People, then Edit.</p><p>Vacation and PTO are not tracked, since California does not require them.</p>"},
@@ -2456,9 +2480,9 @@ function polHome(v){
   const adminTiles =
     (state.isAdmin ? `
     <button class="action-card" onclick="goModule('dashboard')"><div class="ai">\u{1F4CA}</div><div><h3>${t('HR Dashboard')}</h3><p>${t('Headcount and pending actions')}</p></div></button>
-    <button class="action-card" onclick="goModule('toolkit')"><div class="ai">\u{1F9F0}</div><div><h3>${t('Manager Toolkit')}</h3><p>${t('Tools and how-tos')}</p></div></button>` : "")
+    <button class="action-card" onclick="goModule('toolkit')"><div class="ai">\u{1F9F0}</div><div><h3>${t('Manager Toolkit')}</h3><p>${t('Tools and how-tos')}</p></div></button>
+    <button class="action-card" onclick="goModule('attendance')"><div class="ai">\u{23F1}\u{FE0F}</div><div><h3>${t('Timekeeping')}</h3><p>${t('Hours and timesheets')}</p></div></button>` : "")
   + (state.isSuper ? `
-    <button class="action-card" onclick="goModule('attendance')"><div class="ai">\u{23F1}\u{FE0F}</div><div><h3>${t('Timekeeping')}</h3><p>${t('Hours and timesheets')}</p></div></button>
     <button class="action-card" onclick="goModule('directory')"><div class="ai">\u{1F465}</div><div><h3>${t('Directory')}</h3><p>${t('Employee records')}</p></div></button>
     <button class="action-card" onclick="goModule('recruit')"><div class="ai">\u{1F4BC}</div><div><h3>${t('Recruitment')}</h3><p>${t('Hiring and onboarding')}</p></div></button>
     <button class="action-card" onclick="goModule('hrinbox')"><div class="ai">\u{1F4E5}</div><div><h3>${t('HR Inbox')}</h3><p>${t('Forms sent to HR')}</p></div></button>` : "")
@@ -2775,7 +2799,7 @@ function atAdmin(){
       <div class="card">
         <div class="tp-tools"><div class="section-label" style="margin:0">On the clock now (${openNow.length})</div>
           <div class="ts-toggle"><button class="${state.presenceView!=='list'?'on':''}" onclick="state.presenceView='team';renderAttendance()">By team</button><button class="${state.presenceView==='list'?'on':''}" onclick="state.presenceView='list';renderAttendance()">Everyone</button></div>
-          <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="clearTodayPunches()"><i class="ti ti-eraser"></i> Clear today's punches</button>
+          ${state.isSuper?`<button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="clearTodayPunches()"><i class="ti ti-eraser"></i> Clear all (today)</button>`:``}
         </div>
         ${state.presenceView==='list'?liveHtml:`<div class="tp-wrap">${teamBoards()}</div>`}
       </div>
@@ -2801,7 +2825,16 @@ function atAdmin(){
 }
 function sinceText(iso){const m=Math.floor((Date.now()-new Date(iso))/60000);if(m<60)return m+"m";const h=Math.floor(m/60);return h+"h "+(m%60)+"m";}
 function mapLink(a){ return (a.lat&&a.lng)?` · <a href="https://www.google.com/maps?q=${a.lat},${a.lng}" target="_blank" rel="noopener" style="color:var(--accent)">map</a>`:""; }
+async function deletePunch(id){
+  if(!state.isSuper){ toast("Only a super admin can delete punches"); return; }
+  const a=(ATT||[]).find(x=>x.id===id);
+  const nm=a?a.employee_name:"this";
+  if(!confirm("Delete "+nm+" punch"+(a?" ("+fmtTime(a.clock_in)+(a.clock_out?" to "+fmtTime(a.clock_out):", still open")+")":"")+"?\n\nThis removes it from the timesheets and totals. It cannot be undone.")) return;
+  try{ await DB.deleteEntry(id); await refresh(); renderAttendance(); toast("Punch deleted"); }
+  catch(e){ console.error(e); toast("Could not delete: "+((e&&(e.message||e.details))||"error")); }
+}
 async function clearTodayPunches(){
+  if(!state.isSuper){ toast("Only a super admin can clear punches"); return; }
   const today=new Date().toISOString().slice(0,10);
   const todays=(ATT||[]).filter(a=>(a.clock_in||"").slice(0,10)===today);
   if(!todays.length){ toast("No punches from today to clear"); return; }
@@ -2832,7 +2865,7 @@ function teamBoards(){
     return `<div class="tp-card"><div class="tp-head"><span class="tp-title">${esc(g.title)}</span><span class="tp-count ${cls}">${present} / ${g.members.length} ${t("on the clock")}</span></div>${rows}</div>`;
   }).join("");
 }
-function atRow(a){const km={travel:"travel",office:"office",remote:"remote"};const tv=km[a.kind]?` · <span style="color:var(--warn)">${km[a.kind]}</span>`:"";return `<div class="req" style="padding:11px 13px;margin-bottom:9px"><div style="display:flex;align-items:center;gap:11px"><div class="avatar" style="width:30px;height:30px;font-size:11px;background:${avatarColor(a.team)}">${initials(a.employee_name)}</div><div style="flex:1"><div style="font-size:13.5px;font-weight:600">${esc(a.employee_name)}</div><div style="font-size:12px;color:var(--faint)">${fmtTime(a.clock_in)} ${a.clock_out?"→ "+fmtTime(a.clock_out):"→ ..."}${a.site?" · "+esc(a.site):""}${tv}${mapLink(a)}</div></div><span class="days-tag">${a.clock_out?a.hours+"h":'<span style="color:var(--ok)">active</span>'}</span></div></div>`;}
+function atRow(a){const km={travel:"travel",office:"office",remote:"remote"};const tv=km[a.kind]?` · <span style="color:var(--warn)">${km[a.kind]}</span>`:"";const del=state.isSuper?`<button class="ic-btn" title="Delete this punch" onclick="deletePunch('${a.id}')" style="color:var(--bad);margin-left:4px"><i class="ti ti-trash"></i></button>`:"";return `<div class="req" style="padding:11px 13px;margin-bottom:9px"><div style="display:flex;align-items:center;gap:11px"><div class="avatar" style="width:30px;height:30px;font-size:11px;background:${avatarColor(a.team)}">${initials(a.employee_name)}</div><div style="flex:1"><div style="font-size:13.5px;font-weight:600">${esc(a.employee_name)}</div><div style="font-size:12px;color:var(--faint)">${fmtTime(a.clock_in)} ${a.clock_out?"→ "+fmtTime(a.clock_out):"→ ..."}${a.site?" · "+esc(a.site):""}${tv}${mapLink(a)}</div></div><span class="days-tag">${a.clock_out?a.hours+"h":'<span style="color:var(--ok)">active</span>'}</span>${del}</div></div>`;}
 
 function timesheetData(){
   const {start,end,team}=state.tsRange;
