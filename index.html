@@ -1968,7 +1968,7 @@ async function renderAuth(){
   const err=AUTH.err?`<div class="auth-err">${esc(AUTH.err)}</div>`:"";
   if(AUTH.step==="id"){
     const b=bioLocal(); let bioBtn="";
-    if(b && await bioSupported()) bioBtn=`<button class="btn btn-ghost auth-bio" onclick="authBio()"><i class="ti ti-fingerprint"></i> ${t("Unlock as")} ${esc((b.name||"").split(" ")[0])}</button>`;
+    if(b && await bioSupported()) bioBtn=`<button class="btn btn-ghost auth-bio" onclick="authBio()"><i class="ti ti-fingerprint"></i> ${t("Use fingerprint or face")}</button>`;
     v.innerHTML=`<div class="auth-wrap">${authHero(t("Sign in to open the Hub."))}
       <div class="auth-card">
         <input id="authId" class="auth-input" placeholder="${t("Email or setup code")}" autocomplete="username" autocapitalize="none">
