@@ -910,7 +910,7 @@ const DB={
   async onboardings(){ if(!LIVE)return[]; const{data,error}=await sb.from("onboarding").select("*").order("created_at",{ascending:false}); if(error)throw error; return data||[]; },
   async addOnboarding(o){ if(!LIVE)return null; const{data,error}=await sb.from("onboarding").insert(o).select(); if(error)throw error; return data&&data[0]; },
   async updateOnboarding(id,patch){ if(!LIVE)return; const{error}=await sb.from("onboarding").update(patch).eq("id",id); if(error)throw error; },
-  async onboardingByCode(code){ if(!LIVE)return null; const{data,error}=await sb.from("onboarding").select("*").eq("code",code).limit(1); if(error)throw error; return data&&data[0]; },
+  async onboardingByCode(code){ if(!LIVE){ if(typeof DEMO_SESSION!=="undefined"&&DEMO_SESSION){ return {id:"demoOnb",name:"Demo Employee",role:"Cleaner",code:(code||"DEMO"),created_at:new Date().toISOString(),tasks:clone(ONBOARD_TEMPLATE_US).map(t=>Object.assign({},t,{done:false}))}; } return null; } const{data,error}=await sb.from("onboarding").select("*").eq("code",code).limit(1); if(error)throw error; return data&&data[0]; },
   async deleteOnboarding(id){ if(!LIVE)return; const{error}=await sb.from("onboarding").delete().eq("id",id); if(error)throw error; },
   async requests(){ if(LIVE){const{data,error}=await sb.from("leave_requests").select("*").order("created_at",{ascending:false});if(error)throw error;return data;} return clone(DEMO_REQ).sort((a,b)=>b.created_at.localeCompare(a.created_at)); },
   async attendance(){ if(LIVE){const{data,error}=await sb.from("attendance").select("*").order("clock_in",{ascending:false});if(error)throw error;return data;} return clone(DEMO_ATT).sort((a,b)=>b.clock_in.localeCompare(a.clock_in)); },
@@ -2014,6 +2014,7 @@ async function renderAuth(){
 }
 function demoStart(){
   DEMO_SESSION=true; LIVE=false; applyBranding();
+  if(!DEMO_PROFILES.find(p=>p.name==="Demo Employee")) DEMO_PROFILES.push({id:"demoProf",name:"Demo Employee",status:"Active",class:"W-2",team:"ca",role:"Cleaner",work_setup:"remote",email:"",active:true,docs:{pct:0},training:{},sick:{method:"Frontload (40 hrs)",accrued:0,used:0,balance:40}});
   if(!DEMO_EMP.find(e=>e.name==="Demo Employee")) DEMO_EMP.push({id:"demoEmp",name:"Demo Employee",team:"ca",email:"",active:true,hire_date:new Date().toISOString().slice(0,10),balances:{"Paid Sick Leave":40,"Vacation / PTO":0,"Unpaid Leave":0}});
   AUTH={step:"setpin",acct:{id:"demo",name:"Demo Employee",email:null,pin_hash:null},err:""};
   renderAuth();
