@@ -1676,7 +1676,7 @@ async function offerCreateDigital(){
   try{ navigator.clipboard.writeText(link); }catch(e){}
   const email=(app&&app.email)||"";
   const first=name.split(" ")[0];
-  const body=encodeURIComponent("Hi "+first+", we are happy to offer you a position at M & M Solutions. Please open your private link below to read your offer and accept it, then follow the short onboarding steps. Questions? Just reply here.\r\n\r\n"+link);
+  const body=encodeURIComponent("Hi "+first+", we are happy to offer you a position at M & M Solutions. Please open your private link below to read your offer and accept it, then follow the short onboarding steps. Questions? Just reply here.\r\n\r\nEn espa\u00f1ol: Nos complace ofrecerle un puesto en M & M Solutions. Abra su enlace privado para leer y aceptar su oferta. \u00bfPreguntas? Responda a este correo.\r\n\r\n"+link);
   $("#modalBox").innerHTML=`<h3><i class="ti ti-circle-check" style="color:var(--ok)"></i> Offer created for ${esc(first)}</h3>
     <p style="font-size:13.5px;color:var(--sub);line-height:1.6">The Hub does not send emails itself. Send ${esc(first)} this private link by text or email; opening it shows the offer and, after accepting, the onboarding steps. Code: <b>${esc(code)}</b></p>
     <div class="field" style="margin-top:10px"><label>Private link (already copied)</label><input class="f-input" value="${esc(link)}" readonly onclick="this.select()"/></div>
@@ -1717,6 +1717,7 @@ function offerGenerate(){
   <p>Dear ${esc(name)},</p>
   ${body}
   <p>This offer is valid until <b>${exp?fmt(exp):"the start date above"}</b>. To accept, please sign and date below and return this letter to the office.</p>
+  <p style="font-style:italic;color:#5a6b85;border-top:1px solid #c9d2e0;padding-top:12px">En espa\u00f1ol: Nos complace ofrecerle el puesto de <b>${esc(role)}</b>${w2?" como empleado W-2 por hora":" como contratista independiente 1099"}, con pago de <b>$${esc(rate)} por hora</b>, comenzando el <b>${fmt(start)}</b>.${w2?" Este es un empleo a voluntad (at-will), condicionado a la verificaci\u00f3n I-9.":" Este acuerdo no crea una relaci\u00f3n laboral y usted es responsable de sus impuestos."} La oferta es v\u00e1lida hasta <b>${exp?fmt(exp):"la fecha de inicio"}</b>. Para aceptar, firme y feche abajo y devuelva esta carta a la oficina.</p>
   <p>We are excited to have you on the team.</p>
   <p>Sincerely,</p>
   <div class="sig"><div><div class="ln">Deander Gooden, CEO<br/>M &amp; M Solutions</div></div>
@@ -1943,19 +1944,39 @@ async function renderOnboard(){
   if(!state.onboardCode || state.onboardRec===false){ box.innerHTML=onbEntry(!!state.onboardCode); return; }
   box.innerHTML=onbView(state.onboardRec);
 }
+const ONB_ES={
+ emp_info:"Llene el formulario de Informaci\u00f3n del Empleado",
+ i9:"Lleve sus documentos de identidad del I-9 a la oficina",
+ w4:"Complete su W-4 (retenci\u00f3n federal)",
+ de4:"Complete su DE 4 (retenci\u00f3n de California)",
+ dd:"Configure su dep\u00f3sito directo (opcional)",
+ policy_review:"Lea y reconozca cada pol\u00edtica del Manual del Empleado",
+ ack_handbook:"He le\u00eddo y reconozco el Manual del Empleado y todas sus pol\u00edticas",
+ read_sh:"Lea la Pol\u00edtica de Acoso Sexual",
+ ack_sh:"He le\u00eddo y reconozco la Pol\u00edtica de Acoso Sexual",
+ wage_notice:"Revise su aviso de salario de California (entregado por la oficina)",
+ wc_pamphlet:"Revise el folleto de compensaci\u00f3n de trabajadores (de la oficina)",
+ ca_notices:"Revise el paquete de avisos de California para nuevos empleados",
+ confid:"Firme el Acuerdo de Confidencialidad (de la oficina)",
+ contact:"Llene sus datos de contacto y contacto de emergencia",
+ agreement:"Firme su Acuerdo de Contratista Independiente",
+ payment:"Confirme su m\u00e9todo de pago",
+ offer_accept:"Lea y acepte su oferta de trabajo"};
+const ONB_ES_G={"Your paperwork":"Sus documentos","Read and acknowledge":"Leer y reconocer","Your job offer":"Su oferta de trabajo"};
+function onbEs(k){ return ONB_ES[k]||""; }
 function onbOfferView(r,tk){
   const o=tk.offer||{}; const first=(r.name||"").split(" ")[0]; const w2=o.cls!=="1099";
   const fmt=d=>{try{return new Date(d+"T00:00").toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});}catch(e){return d||"";}};
-  const rows=[["Position",o.role],["Classification",w2?"W-2 employee, hourly":"1099 independent contractor"],["Pay",o.rate?("$"+o.rate+" per hour, paid "+String(o.sched||"weekly").toLowerCase()):""],["Start date",fmt(o.start)],["Reports to",o.lead],["Work location",o.loc],["Offer valid until",fmt(o.exp)]].filter(x=>x[1]);
+  const rows=[["Position \u00b7 Puesto",o.role],["Classification \u00b7 Clasificaci\u00f3n",w2?"W-2 employee, hourly \u00b7 Empleado W-2, por hora":"1099 independent contractor \u00b7 Contratista independiente 1099"],["Pay \u00b7 Pago",o.rate?("$"+o.rate+" per hour, paid "+String(o.sched||"weekly").toLowerCase()+" \u00b7 $"+o.rate+" por hora"):""],["Start date \u00b7 Fecha de inicio",fmt(o.start)],["Reports to \u00b7 Reporta a",o.lead],["Work location \u00b7 Lugar de trabajo",o.loc],["Offer valid until \u00b7 V\u00e1lida hasta",fmt(o.exp)]].filter(x=>x[1]);
   return `<div class="onb-wrap">
-    <div class="onb-hero"><div class="onb-logo"><img src="${LOGO_DATA_URI}" alt=""></div><h1 class="onb-title serif">Welcome, ${esc(first)}</h1><p class="onb-sub">You have a job offer from M &amp; M Solutions. Read it, then accept below to start your onboarding.</p></div>
+    <div class="onb-hero"><div class="onb-logo"><img src="${LOGO_DATA_URI}" alt=""></div><h1 class="onb-title serif">Welcome, ${esc(first)}</h1><p class="onb-sub">You have a job offer from M &amp; M Solutions. Read it, then accept below to start your onboarding.<br><i>Tiene una oferta de trabajo de M &amp; M Solutions. L\u00e9ala y acepte abajo para comenzar.</i></p></div>
     <div class="card" style="padding:24px">
       <div style="font-family:Georgia,serif;font-size:20px;font-weight:bold;color:var(--accent)">Offer of ${w2?"Employment":"Engagement"}</div>
       <div style="font-size:12.5px;color:var(--faint);margin:2px 0 14px">M &amp; M Solutions</div>
       ${rows.map(x=>`<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px"><b style="width:132px;flex-shrink:0;color:var(--sub)">${x[0]}</b><span>${esc(x[1])}</span></div>`).join("")}
-      <p style="font-size:13px;color:var(--sub);line-height:1.6;margin-top:14px">${w2?"This is an at-will, hourly, non-exempt position. This offer is contingent on completing federal I-9 employment eligibility verification and the onboarding steps that follow.":"This engagement does not create an employment relationship. You are responsible for your own taxes. This offer is contingent on signing the Independent Contractor Agreement in the steps that follow."}</p>
-      <div class="field" style="margin-top:14px"><label>Type your full legal name to accept</label><input class="f-input" id="ofAcceptSig" placeholder="${esc(r.name||"Your full name")}"/></div>
-      <button class="btn btn-primary" style="width:100%;margin-top:6px" onclick="onbAcceptOffer()"><i class="ti ti-signature"></i> I accept this offer</button>
+      <p style="font-size:13px;color:var(--sub);line-height:1.6;margin-top:14px">${w2?"This is an at-will, hourly, non-exempt position. This offer is contingent on completing federal I-9 employment eligibility verification and the onboarding steps that follow.<br><i>Este es un puesto por hora, no exento y de empleo a voluntad (at-will). La oferta depende de completar la verificaci\u00f3n federal I-9 y los pasos de incorporaci\u00f3n.</i>":"This engagement does not create an employment relationship. You are responsible for your own taxes. This offer is contingent on signing the Independent Contractor Agreement in the steps that follow.<br><i>Este acuerdo no crea una relaci\u00f3n laboral. Usted es responsable de sus propios impuestos. La oferta depende de firmar el Acuerdo de Contratista Independiente en los pasos siguientes.</i>"}</p>
+      <div class="field" style="margin-top:14px"><label>Type your full legal name to accept \u00b7 Escriba su nombre legal completo para aceptar</label><input class="f-input" id="ofAcceptSig" placeholder="${esc(r.name||"Your full name")}"/></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:6px" onclick="onbAcceptOffer()"><i class="ti ti-signature"></i> I accept this offer \u00b7 Acepto esta oferta</button>
       <div style="font-size:12px;color:var(--faint);margin-top:10px;text-align:center">Accepting records your name and the date and time.</div>
     </div>
     <div class="onb-foot">Questions before accepting? Contact the office.</div></div>`;
@@ -1971,7 +1992,7 @@ async function onbAcceptOffer(){
   renderOnboard();
 }
 function onbOfficeRow(tk){
-  return `<div class="onb-task ${tk.done?"done":""}"><span class="onb-check" style="color:${tk.done?"var(--ok)":"var(--faint)"}"><i class="ti ${tk.done?"ti-circle-check-filled":"ti-printer"}"></i></span><div class="onb-task-main"><span class="onb-task-label">${esc(tk.label)}</span><span style="font-size:12.5px;color:var(--sub)">${tk.done?("Signed at the office"+(tk.ts?" \u00b7 "+new Date(tk.ts).toLocaleDateString():"")):t("The office will print this with your details already on it. You just sign it in person.")}</span></div></div>`;
+  return `<div class="onb-task ${tk.done?"done":""}"><span class="onb-check" style="color:${tk.done?"var(--ok)":"var(--faint)"}"><i class="ti ${tk.done?"ti-circle-check-filled":"ti-printer"}"></i></span><div class="onb-task-main"><span class="onb-task-label">${esc(tk.label)}${onbEs(tk.key)?`<br><i style="font-weight:400;color:var(--sub);font-size:12.5px">${onbEs(tk.key)}</i>`:""}</span><span style="font-size:12.5px;color:var(--sub)">${tk.done?("Signed at the office"+(tk.ts?" \u00b7 "+new Date(tk.ts).toLocaleDateString():"")):(t("The office will print this with your details already on it. You just sign it in person.")+" \u00b7 La oficina lo imprimir\u00e1 con sus datos; usted solo lo firma en persona.")}</span></div></div>`;
 }
 function onbAdminOfficeRow(o,t){
   return `<div class="onb-prow ${t.done?"done":""}"><i class="ti ${t.done?"ti-circle-check-filled":"ti-printer"}" style="color:${t.done?"var(--ok)":"var(--warn)"}"></i><span style="flex:1;min-width:0">${esc(t.label)}</span><button class="linkbtn" onclick="event.stopPropagation();onbSheet('${o.id}','${t.key}')"><i class="ti ti-printer"></i> Print sheet</button><button class="linkbtn" onclick="event.stopPropagation();onbOfficeToggle('${o.id}','${t.key}')">${t.done?"Undo":"Mark signed"}</button></div>`;
@@ -2012,9 +2033,9 @@ function onbSheet(id,key){
 }
 function onbEntry(bad){
   const pre=!!(state.onboardCode&&!bad);
-  const sub=pre?"Your code is filled in below. Tap Start to begin.":"Enter the onboarding code the office gave you.";
+  const sub=pre?"Your code is filled in below. Tap Start to begin. \u00b7 Su c\u00f3digo ya est\u00e1 abajo. Toque Comenzar.":"Enter the onboarding code the office gave you. \u00b7 Escriba el c\u00f3digo que le dio la oficina.";
   return `<div class="onb-wrap"><div class="onb-hero"><div class="onb-logo"><img src="${LOGO_DATA_URI}" alt=""></div><h1 class="onb-title serif">Welcome to M &amp; M Solutions</h1><p class="onb-sub">${sub}</p></div>
-    <div class="card onb-codecard"><input id="onbCodeIn" class="onb-codein" placeholder="ABC123" maxlength="8" value="${esc(state.onboardCode||"")}" oninput="this.value=this.value.toUpperCase()">${bad?`<div class="onb-err">That code was not found. Check it and try again.</div>`:""}<button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="onbEnter()">Start</button></div></div>`;
+    <div class="card onb-codecard"><input id="onbCodeIn" class="onb-codein" placeholder="ABC123" maxlength="8" value="${esc(state.onboardCode||"")}" oninput="this.value=this.value.toUpperCase()">${bad?`<div class="onb-err">That code was not found. Check it and try again.</div>`:""}<button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="onbEnter()">Start \u00b7 Comenzar</button></div></div>`;
 }
 function onbEnter(){ const c=(($("#onbCodeIn")||{}).value||"").trim().toUpperCase(); if(!c)return; state.onboardCode=c; state.onboardEntered=true; state.onboardRec=null; renderOnboard(); }
 function onbView(r){
@@ -2024,9 +2045,9 @@ function onbView(r){
   const done=tasks.filter(t=>t.done).length; const pct=tasks.length?Math.round(done/tasks.length*100):0;
   const groups=[]; tasks.forEach(t=>{ if(!groups.includes(t.group)) groups.push(t.group); });
   const secs=groups.map(g=>{ const items=tasks.filter(t=>t.group===g);
-    return `<div class="onb-group"><div class="onb-group-h">${esc(t(g))}</div>${items.map(t=>t.key==="policy_review"?prvBlock(t):(t.office?onbOfficeRow(t):`<div class="onb-task ${t.done?"done":""}">
+    return `<div class="onb-group"><div class="onb-group-h">${esc(t(g))}${ONB_ES_G[g]?` \u00b7 ${ONB_ES_G[g]}`:""}</div>${items.map(t=>t.key==="policy_review"?prvBlock(t):(t.office?onbOfficeRow(t):`<div class="onb-task ${t.done?"done":""}">
         <button class="onb-check" onclick="onbToggle('${t.key}')"><i class="ti ${t.done?"ti-circle-check-filled":"ti-circle"}"></i></button>
-        <div class="onb-task-main"><span class="onb-task-label">${esc(t.label)}</span>
+        <div class="onb-task-main"><span class="onb-task-label">${esc(t.label)}${onbEs(t.key)?`<br><i style="font-weight:400;color:var(--sub);font-size:12.5px">${onbEs(t.key)}</i>`:""}</span>
           ${t.link?`<a class="onb-task-link" href="${esc(t.link)}" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Open</a>`:""}
           ${t.form?`<button class="onb-task-link" onclick="onbFillForm('${t.form}')"><i class="ti ti-forms"></i> Fill it out here</button>`:""}
           ${t.done&&t.sig?`<span class="onb-signed">Signed by ${esc(t.sig)} \u00b7 ${t.ts?new Date(t.ts).toLocaleDateString():""}</span>`:""}
@@ -2035,10 +2056,10 @@ function onbView(r){
   const doneMsg = pct===100 ? `<div class="onb-complete"><i class="ti ti-confetti"></i> All done. Welcome aboard. The office will follow up on anything that needs a signature in person.</div>` : "";
   const first=((r.name||"").split(" ")[0])||"there";
   return `<div class="onb-wrap">
-    <div class="onb-hero"><div class="onb-logo"><img src="${LOGO_DATA_URI}" alt=""></div><h1 class="onb-title serif">Welcome, ${esc(first)}</h1><p class="onb-sub">Work through these at your own pace. Your progress saves as you go, so you can stop and come back.</p></div>
+    <div class="onb-hero"><div class="onb-logo"><img src="${LOGO_DATA_URI}" alt=""></div><h1 class="onb-title serif">Welcome, ${esc(first)}</h1><p class="onb-sub">Work through these at your own pace. Your progress saves as you go, so you can stop and come back.<br><i>Avance a su propio ritmo. Su progreso se guarda, puede pausar y volver cuando quiera.</i></p></div>
     <div class="onb-progresswrap"><div class="doc-bar"><div class="doc-bar-fill" style="width:${pct}%"></div></div><div class="doc-pct">${done} of ${tasks.length} done · ${pct}%</div></div>
     ${doneMsg}${secs}
-    <div class="onb-foot">Questions about any step? Contact the office. This page is just for you.</div></div>`;
+    <div class="onb-foot">Questions about any step? Contact the office. This page is just for you.<br><i>\u00bfPreguntas? Contacte a la oficina. Esta p\u00e1gina es solo para usted.</i></div></div>`;
 }
 async function onbToggle(key){
   const r=state.onboardRec; if(!r)return; const tk=(r.tasks||[]).find(x=>x.key===key); if(!tk)return;
