@@ -928,6 +928,10 @@ const DB={
   async clockIn(rec){ if(LIVE){const{error}=await sb.from("attendance").insert(rec);if(error)throw error;return;} DEMO_ATT.push({...rec,id:uid(),hours:null,clock_out:null}); },
   async clockOut(id,clock_out,hours){ if(LIVE){const{error}=await sb.from("attendance").update({clock_out,hours}).eq("id",id);if(error)throw error;return;} const a=DEMO_ATT.find(x=>x.id===id); if(a){a.clock_out=clock_out;a.hours=hours;} },
   async updateEntry(id,patch){ if(LIVE){const{error}=await sb.from("attendance").update(patch).eq("id",id);if(error)throw error;return;} const a=DEMO_ATT.find(x=>x.id===id); if(a)Object.assign(a,patch); },
+  async deleteProfileRow(id){ if(!LIVE){ DEMO_PROFILES=DEMO_PROFILES.filter(p=>p.id!==id); return; } const{error}=await sb.from("employee_profiles").delete().eq("id",id); if(error)throw error; },
+  async deleteEmployeeRow(id){ if(!LIVE){ DEMO_EMP=DEMO_EMP.filter(e=>e.id!==id); return; } const{error}=await sb.from("employees").delete().eq("id",id); if(error)throw error; },
+  async deleteAttendanceFor(empId){ if(!LIVE){ DEMO_ATT=DEMO_ATT.filter(a=>a.employee_id!==empId); return; } const{error}=await sb.from("attendance").delete().eq("employee_id",empId); if(error)throw error; },
+  async deleteRequestsFor(empId){ if(!LIVE){ DEMO_REQ=DEMO_REQ.filter(r=>r.employee_id!==empId); return; } const{error}=await sb.from("leave_requests").delete().eq("employee_id",empId); if(error)throw error; },
   async deleteEntry(id){ if(LIVE){const{error}=await sb.from("attendance").delete().eq("id",id);if(error)throw error;return;} DEMO_ATT=DEMO_ATT.filter(x=>x.id!==id); },
   async renameAttendance(empId,name){ if(LIVE){const{error}=await sb.from("attendance").update({employee_name:name}).eq("employee_id",empId); if(error)throw error; return;} DEMO_ATT.forEach(a=>{ if(a.employee_id===empId) a.employee_name=name; }); },
   async renameRequests(empId,name){ if(LIVE){const{error}=await sb.from("leave_requests").update({employee_name:name}).eq("employee_id",empId); if(error)throw error; return;} DEMO_REQ.forEach(r=>{ if(r.employee_id===empId) r.employee_name=name; }); },
@@ -1337,7 +1341,7 @@ function empPanelBuild(i){
   $("#pBody").innerHTML = sec("Contact",contact)+sec("Employment",employment)+sec(t("Team"),teamBlock)+sec(t("Key dates"),keyDates)+sec("Pay &amp; identity",identity)+sec("Emergency",emerg)+sec("Documents",docBlock)+sec("Files",filesBlock)+sec("Training",training||kvMuted("ti-clipboard","Status","Not tracked yet"))+sec("Sick / PTO",sick)+(notes?sec("Notes",notes):"");
   const sepd=(p.status||"").toLowerCase().indexOf("separat")===0;
   const empActions = canEdit ? (sepd
-    ? `<button class="btn btn-ghost" style="width:100%" onclick="empReactivate(${i})"><i class="ti ti-user-check"></i> Reactivate this employee</button>`
+    ? `<button class="btn btn-ghost" style="width:100%" onclick="empReactivate(${i})"><i class="ti ti-user-check"></i> Reactivate this employee</button>${state.isOwner?`<button class="btn btn-ghost" style="width:100%;margin-top:8px;color:var(--bad)" onclick="empErase(${i})"><i class="ti ti-trash-x"></i> Delete permanently</button>`:""}`
     : `<button class="btn btn-ghost" style="width:100%;color:var(--bad)" onclick="empOffboardModal(${i})"><i class="ti ti-user-x"></i> Offboard / mark as separated</button>`) : "";
   $("#pFoot").innerHTML=empActions+`<div class="foot-note" style="margin-top:${empActions?"8px":"0"}">Tap the pencil next to the name to edit the name and details right here.</div>`;
   $("#panel").classList.add("open");$("#panelScrim").classList.add("open");$("#pBody").scrollTop=0;
@@ -1490,6 +1494,26 @@ async function empOffboard(i){
   closeModal(); closePanel(); await refresh();
   toast(((p.name||"").split(" ")[0]||"Employee")+" offboarded");
   renderDirectory();
+}
+async function empErase(i){
+  if(!state.isOwner){ toast("This action is locked"); return; }
+  const p=PROFILES[i]; if(!p)return;
+  const typed=prompt('This permanently deletes '+(p.name||'this person')+' everywhere: profile, roster rows, all punches, and all time-off records. It cannot be undone.\n\nType their full name to confirm:');
+  if(typed===null) return;
+  if(normName(typed)!==normName(p.name||"")){ toast("Name did not match, nothing was deleted"); return; }
+  const rows=[].concat(EMP||[],INACTIVE_EMP||[]).filter(e=>fuzzyNamesAlike(e.name,p.name));
+  try{
+    for(const r of rows){
+      await DB.deleteAttendanceFor(r.id);
+      await DB.deleteRequestsFor(r.id);
+      await DB.deleteEmployeeRow(r.id);
+    }
+    await DB.deleteProfileRow(p.id);
+  }catch(e){ toast("Could not delete: "+((e&&(e.message||e.details))||"error")); return; }
+  closePanel();
+  try{ await refresh(); }catch(e){}
+  if(state.module==="directory") renderDirectory();
+  toast((p.name||"Person")+" deleted permanently");
 }
 async function empReactivate(i){
   const p=PROFILES[i]; if(!p)return;
