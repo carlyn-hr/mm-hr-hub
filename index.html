@@ -1676,7 +1676,7 @@ async function offerCreateDigital(){
   try{ navigator.clipboard.writeText(link); }catch(e){}
   const email=(app&&app.email)||"";
   const first=name.split(" ")[0];
-  const body="Hi "+first+", we are happy to offer you a position at M & M Solutions. Please open your private link below to read your offer and accept it, then follow the short onboarding steps. Questions? Just reply here.%0D%0A%0D%0A"+encodeURIComponent(link);
+  const body=encodeURIComponent("Hi "+first+", we are happy to offer you a position at M & M Solutions. Please open your private link below to read your offer and accept it, then follow the short onboarding steps. Questions? Just reply here.\r\n\r\n"+link);
   $("#modalBox").innerHTML=`<h3><i class="ti ti-circle-check" style="color:var(--ok)"></i> Offer created for ${esc(first)}</h3>
     <p style="font-size:13.5px;color:var(--sub);line-height:1.6">The Hub does not send emails itself. Send ${esc(first)} this private link by text or email; opening it shows the offer and, after accepting, the onboarding steps. Code: <b>${esc(code)}</b></p>
     <div class="field" style="margin-top:10px"><label>Private link (already copied)</label><input class="f-input" value="${esc(link)}" readonly onclick="this.select()"/></div>
