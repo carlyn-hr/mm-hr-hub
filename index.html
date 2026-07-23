@@ -1594,8 +1594,10 @@ const ONBOARD_TEMPLATE_REMOTE=[
  {key:"schedule",group:"Your first day",label:"Confirm your first-day schedule and working hours"}
 ];
 const onbKind=tasks=>(tasks||[]).some(t=>t.key==="agreement")?"remote":"us";
+function isAckOnly(o){ const t=(o&&o.tasks)||[]; return t.some(x=>x.key==="policy_review") && !t.some(x=>["emp_info","contact","i9","agreement"].indexOf(x.key)>=0); }
 function onbMigrate(o){
   if(!o||!Array.isArray(o.tasks)||!o.tasks.length) return false;
+  if(isAckOnly(o)) return false;
   const cur=newTasks(onbKind(o.tasks));
   const curKeySet=new Set(cur.map(t=>t.key));
   /* Extra tasks that are not in the template (like the digital job offer) are kept, in front. */
@@ -1669,9 +1671,16 @@ async function offerCreateDigital(){
   try{ await DB.addOnboarding({applicant_id:app?app.id:null,name,email:(app&&app.email)||null,role,start_date:start||null,code,tasks,status:"in_progress"}); }
   catch(e){ toast("Could not create the offer"); return; }
   if(app){ try{ await DB.updateApplicant(app.id,{stage:"Offer"}); }catch(e){} }
-  closeModal(); try{ await reloadRec(); }catch(e){}
-  try{ navigator.clipboard.writeText(onbBaseLink(code)); }catch(e){}
-  toast("Digital offer created, code "+code+". The link is copied, send it to "+name.split(" ")[0]+".");
+  try{ await reloadRec(); }catch(e){}
+  const link=onbBaseLink(code);
+  try{ navigator.clipboard.writeText(link); }catch(e){}
+  const email=(app&&app.email)||"";
+  const first=name.split(" ")[0];
+  const body="Hi "+first+", we are happy to offer you a position at M & M Solutions. Please open your private link below to read your offer and accept it, then follow the short onboarding steps. Questions? Just reply here.%0D%0A%0D%0A"+encodeURIComponent(link);
+  $("#modalBox").innerHTML=`<h3><i class="ti ti-circle-check" style="color:var(--ok)"></i> Offer created for ${esc(first)}</h3>
+    <p style="font-size:13.5px;color:var(--sub);line-height:1.6">The Hub does not send emails itself. Send ${esc(first)} this private link by text or email; opening it shows the offer and, after accepting, the onboarding steps. Code: <b>${esc(code)}</b></p>
+    <div class="field" style="margin-top:10px"><label>Private link (already copied)</label><input class="f-input" value="${esc(link)}" readonly onclick="this.select()"/></div>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Done</button><button class="btn btn-ghost" onclick="navigator.clipboard.writeText('${esc(link)}');toast('Link copied')"><i class="ti ti-copy"></i> Copy link</button><a class="btn btn-primary" href="mailto:${esc(email)}?subject=${encodeURIComponent('Your job offer from M & M Solutions')}&body=${body}" style="text-decoration:none"><i class="ti ti-mail"></i> Email it</a></div>`;
 }
 function offerGenerate(){
   const g=id=>(($("#"+id)||{}).value||"").trim();
@@ -1717,6 +1726,26 @@ function offerGenerate(){
   const win=window.open("","_blank"); if(!win){ toast("Allow pop-ups to open the letter"); return; }
   win.document.write(html); win.document.close();
   closeModal();
+}
+function ackCampaignModal(){
+  const have=((state.rec||{}).onbs||[]).filter(isAckOnly);
+  const need=(EMP||[]).filter(e=>!have.some(o=>fuzzyNamesAlike(o.name,e.name)));
+  $("#modalBox").innerHTML=`<h3><i class="ti ti-checklist"></i> Policy acknowledgment for the crew</h3>
+    <p style="font-size:13.5px;color:var(--sub);line-height:1.6">Creates a short checklist for each active employee: read every policy, then acknowledge the handbook, the sexual harassment policy, and the wage notice, each with a typed signature. No paperwork steps, since the crew already did those on paper. Each person gets a private link to open on their phone; their signed acknowledgments are kept on the record here.</p>
+    <p style="font-size:13.5px;color:var(--text);margin-top:10px"><b>${need.length}</b> active ${need.length===1?"person":"people"} without one yet${have.length?`, ${have.length} already created`:""}.</p>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" ${need.length?"":"disabled"} onclick="ackCampaignGo()"><i class="ti ti-users"></i> Create for ${need.length}</button></div>`;
+  openModal();
+}
+async function ackCampaignGo(){
+  const have=((state.rec||{}).onbs||[]).filter(isAckOnly);
+  const need=(EMP||[]).filter(e=>!have.some(o=>fuzzyNamesAlike(o.name,e.name)));
+  const ackTasks=()=>ONBOARD_TEMPLATE_US.filter(t=>t.group==="Read and acknowledge").map(t=>({key:t.key,group:t.group,label:t.label,link:t.link||null,form:t.form||null,done:false,ts:null,sig:null,office:false}));
+  let made=0;
+  for(const e of need){
+    try{ await DB.addOnboarding({name:e.name,email:e.email||null,role:"Policy acknowledgment",code:genCode(),tasks:ackTasks(),status:"in_progress"}); made++; }catch(err){}
+  }
+  closeModal(); try{ await reloadRec(); }catch(e){}
+  toast(made+" acknowledgment checklist"+(made===1?"":"s")+" created. Copy each link and send it out.");
 }
 function recPaint(){ const b=$("#recBody"); if(!b)return; b.innerHTML = state.recruitTab==="postings"?recPostings():(state.recruitTab==="onboard"?recOnboard():recPipeline()); }
 
@@ -1806,6 +1835,7 @@ function postCopy(id){ const p=(state.rec.posts||[]).find(x=>x.id===id); if(!p)r
    forwarded_at stamp and a name check, so it never creates duplicates. */
 async function onbForward(o){
   if(!LIVE||!o||o.forwarded_at) return false;
+  if(isAckOnly(o)) return false; /* existing crew, nothing to add to the Directory */
   const tasks=o.tasks||[]; if(!tasks.length||!tasks.every(x=>x.done)) return false;
   const kind=onbKind(tasks); const team=kind==="remote"?"ph":"ca"; const cls=kind==="remote"?"1099":"W-2";
   const stamp=new Date().toISOString();
@@ -1845,7 +1875,7 @@ async function onbSweep(){
 
 function recOnboard(){
   const onbs=state.rec.onbs||[];
-  let html=`<div class="rec-actionbar"><button class="btn btn-primary btn-sm" onclick="onbForm()"><i class="ti ti-plus"></i> New onboarding</button><span class="rec-count">${onbs.length} total</span></div>`;
+  let html=`<div class="rec-actionbar"><button class="btn btn-primary btn-sm" onclick="onbForm()"><i class="ti ti-plus"></i> New onboarding</button><button class="btn btn-ghost btn-sm" onclick="ackCampaignModal()"><i class="ti ti-checklist"></i> Policy acknowledgment for the crew</button><span class="rec-count">${onbs.length} total</span></div>`;
   if(!onbs.length) html+=`<div class="empty"><i class="ti ti-clipboard-off"></i><p>No onboarding yet. Hire a candidate from the pipeline, or add one here.</p></div>`;
   html+=onbs.map((o,i)=>{ const tasks=o.tasks||[]; const done=tasks.filter(t=>t.done).length; const pct=tasks.length?Math.round(done/tasks.length*100):0; const complete=o.status==="complete"||pct===100;
     return `<div class="card onb-card" style="cursor:pointer" onclick="onbPanel(${i})"><div style="flex:1;min-width:0"><div class="post-title">${esc(o.name||"New hire")}</div><div class="post-meta"><span class="team-chip ${onbKind(o.tasks)==="remote"?"ph":"ca"}">${onbKind(o.tasks)==="remote"?"Remote":"US crew"}</span> ${esc(o.role||"Crew")}${o.code?` · code <b>${esc(o.code)}</b>`:""}</div><div class="doc-bar" style="margin-top:9px"><div class="doc-bar-fill" style="width:${pct}%"></div></div><div class="doc-pct">${done} of ${tasks.length} done · ${pct}%${complete?" · complete":""}${o.forwarded_at?" · in Directory":""}</div></div>
