@@ -1607,7 +1607,7 @@ function recTabBar(){
 }
 function setRecTab(t){ state.recruitTab=t; const bar=$(".rec-tabs"); if(bar) bar.outerHTML=recTabBar(); recPaint(); }
 async function reloadRec(){ try{ const [apps,posts,onbs]=await Promise.all([DB.applicants(),DB.postings(),DB.onboardings()]); state.rec={apps,posts,onbs}; onbs.forEach(o=>{ if(onbMigrate(o)){ try{ DB.updateOnboarding(o.id,{tasks:o.tasks}); }catch(e){} } }); }catch(e){} recPaint(); onbSweep(); }
-function offerModal(){
+function offerModal(prefill){
   const apps=((state.rec||{}).apps||[]).map(a=>a.name).filter(Boolean);
   const leads=(EMP||[]).filter(e=>e.role==="lead"||e.role==="owner").map(e=>e.name);
   const dl=(id,items)=>`<datalist id="${id}">${[...new Set(items)].map(n=>`<option value="${esc(n)}">`).join("")}</datalist>`;
@@ -1615,8 +1615,8 @@ function offerModal(){
   const expiry=new Date(today); expiry.setDate(expiry.getDate()+5);
   const iso=d=>d.toISOString().slice(0,10);
   $("#modalBox").innerHTML=`<h3><i class="ti ti-file-certificate"></i> Job offer letter</h3>
-    <div class="field"><label>Candidate name</label><input class="f-input" id="ofName" list="ofApps" placeholder="Full name"/></div>${dl("ofApps",apps)}
-    <div class="field"><label>Position</label><input class="f-input" id="ofRole" placeholder="e.g. Cleaner"/></div>
+    <div class="field"><label>Candidate name</label><input class="f-input" id="ofName" list="ofApps" placeholder="Full name" value="${esc(typeof prefill==="string"?prefill:"")}"/></div>${dl("ofApps",apps)}
+    <div class="field"><label>Position</label><input class="f-input" id="ofRole" placeholder="e.g. Cleaner" value="${esc((typeof prefill==="string"&&(((state.rec||{}).apps||[]).find(a=>a.name===prefill)||{}).role)||"")}"/></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div class="field"><label>Classification</label><select class="f-input" id="ofClass"><option value="W-2">W-2 employee (hourly)</option><option value="1099">1099 independent contractor</option></select></div>
       <div class="field"><label>Pay rate ($/hr)</label><input class="f-input" type="number" min="0" step="0.25" id="ofRate" placeholder="18.00"/></div>
@@ -1717,7 +1717,7 @@ function candPanel(i){
   const resume=a.resume_link?`<div style="margin-top:10px"><a class="btn btn-ghost btn-sm" href="${esc(a.resume_link)}" target="_blank" rel="noopener"><i class="ti ti-file-cv"></i> Open resume</a></div>`:"";
   const notes=a.notes?`<div class="emp-sec"><div class="emp-sec-h">Notes</div><div class="emp-note">${esc(a.notes)}</div></div>`:"";
   const stageBtns=STAGES.map(s=>`<button class="stage-btn ${a.stage===s?"on":""}" onclick="candStage('${a.id}','${s}')">${s}</button>`).join("");
-  $("#pBody").innerHTML=`<div class="emp-sec"><div class="emp-sec-h">Details</div>${info}${resume}</div>${notes}<div class="emp-sec"><div class="emp-sec-h">Move to stage</div><div class="stage-btns">${stageBtns}</div></div>`;
+  $("#pBody").innerHTML=`<div class="emp-sec"><div class="emp-sec-h">Details</div>${info}${resume}</div>${notes}<div class="emp-sec"><div class="emp-sec-h">Job offer</div><button class="btn btn-ghost" style="width:100%" onclick="offerModal(${JSON.stringify(a.name||"")})"><i class="ti ti-file-certificate"></i> Job offer letter for ${esc((a.name||"").split(" ")[0])}</button></div><div class="emp-sec"><div class="emp-sec-h">Move to stage</div><div class="stage-btns">${stageBtns}</div></div>`;
   const hireBtn = a.stage==="Hired" ? `<button class="btn btn-primary" style="width:100%" onclick="candOnboard('${a.id}','us')"><i class="ti ti-clipboard-plus"></i> Start onboarding: US crew</button><button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="candOnboard('${a.id}','remote')"><i class="ti ti-world"></i> Start onboarding: Remote contractor</button>` : "";
   $("#pFoot").innerHTML=`${hireBtn}<div style="display:flex;gap:8px;margin-top:${hireBtn?"8px":"0"}"><button class="btn btn-ghost btn-sm" style="flex:1" onclick="candStage('${a.id}','Rejected')"><i class="ti ti-user-x"></i> Reject</button><button class="btn btn-ghost btn-sm" style="flex:1;color:var(--bad)" onclick="candDelete('${a.id}')"><i class="ti ti-trash"></i> Delete</button></div>`;
   $("#panel").classList.add("open");$("#panelScrim").classList.add("open");$("#pBody").scrollTop=0;
