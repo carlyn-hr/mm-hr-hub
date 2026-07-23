@@ -1,0 +1,27 @@
+name: Supabase heartbeat
+
+# Pings the database twice a week so the free Supabase project never
+# pauses from inactivity. The key below is the same public key already
+# visible in the Hub's page source, so nothing new is exposed here.
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"   # Mondays 6:17 AM UTC
+    - cron: "17 6 * * 4"   # Thursdays 6:17 AM UTC
+  workflow_dispatch: {}    # adds a manual "Run workflow" button
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://ziaoeyzdjkzdaxklmjbk.supabase.co/rest/v1/employees?select=id&limit=1" \
+            -H "apikey: sb_publishable_hE9L6twsOoUtFaPLd3ti0g_GBQtaJBp" \
+            -H "Authorization: Bearer sb_publishable_hE9L6twsOoUtFaPLd3ti0g_GBQtaJBp")
+          echo "Supabase answered with HTTP $code"
+          if [ "$code" != "200" ]; then
+            echo "Heartbeat failed, the database may be paused or the key changed."
+            exit 1
+          fi
