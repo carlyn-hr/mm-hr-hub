@@ -1563,7 +1563,7 @@ const STAGES=["Applied","Screening","Interview","Offer","Hired"];
 const STAGE_ICON={Applied:"ti-inbox",Screening:"ti-phone-call",Interview:"ti-users",Offer:"ti-mail-forward",Hired:"ti-user-check"};
 const ONBOARD_TEMPLATE_US=[
  {key:"emp_info",group:"Your paperwork",label:"Fill out the Employee Information form",form:"emp_info"},
- {key:"i9",group:"Your paperwork",label:"Bring your I-9 identity documents to the office"},
+ {key:"i9",group:"Your paperwork",label:"Bring your I-9 identity documents to the office",link:"https://www.uscis.gov/sites/default/files/document/forms/i-9.pdf"},
  {key:"w4",group:"Your paperwork",label:"Complete your W-4 (federal tax withholding)",link:"https://www.irs.gov/pub/irs-pdf/fw4.pdf"},
  {key:"de4",group:"Your paperwork",label:"Complete your DE 4 (California tax withholding)",link:"https://edd.ca.gov/siteassets/files/pdf_pub_ctr/de4.pdf"},
  {key:"dd",group:"Your paperwork",label:"Set up direct deposit (optional)",link:"https://drive.google.com/file/d/11JIsX39XDwzdVpSNI4Hw0G6xSdvy5_Nh/view?usp=sharing"},
@@ -1579,7 +1579,6 @@ const ONBOARD_TEMPLATE_US=[
  {key:"iipp",group:"Required training",label:"Complete IIPP and safety orientation"},
  {key:"sds",group:"Required training",label:"Complete chemical and SDS safety"},
  {key:"supervisor",group:"Your first day",label:"Meet your supervisor or crew lead"},
- {key:"uniform",group:"Your first day",label:"Get your uniform and ID badge"},
  {key:"schedule",group:"Your first day",label:"Confirm your first-day schedule and site"}
 ];
 const ONBOARD_TEMPLATE_REMOTE=[
@@ -1601,6 +1600,8 @@ function onbMigrate(o){
   const cur=newTasks(onbKind(o.tasks));
   const curKeySet=new Set(cur.map(t=>t.key));
   /* Extra tasks that are not in the template (like the digital job offer) are kept, in front. */
+  const RETIRED=["uniform"];
+  o.tasks=o.tasks.filter(t=>RETIRED.indexOf(t.key)<0);
   const extras=o.tasks.filter(t=>!curKeySet.has(t.key));
   const core=o.tasks.filter(t=>curKeySet.has(t.key));
   const curKeys=cur.map(t=>t.key).join(","), oldKeys=core.map(t=>t.key).join(",");
@@ -1992,7 +1993,7 @@ async function onbAcceptOffer(){
   renderOnboard();
 }
 function onbOfficeRow(tk){
-  return `<div class="onb-task ${tk.done?"done":""}"><span class="onb-check" style="color:${tk.done?"var(--ok)":"var(--faint)"}"><i class="ti ${tk.done?"ti-circle-check-filled":"ti-printer"}"></i></span><div class="onb-task-main"><span class="onb-task-label">${esc(tk.label)}${onbEs(tk.key)?`<br><i style="font-weight:400;color:var(--sub);font-size:12.5px">${onbEs(tk.key)}</i>`:""}</span><span style="font-size:12.5px;color:var(--sub)">${tk.done?("Signed at the office"+(tk.ts?" \u00b7 "+new Date(tk.ts).toLocaleDateString():"")):(t("The office will print this with your details already on it. You just sign it in person.")+" \u00b7 La oficina lo imprimir\u00e1 con sus datos; usted solo lo firma en persona.")}</span></div></div>`;
+  return `<div class="onb-task ${tk.done?"done":""}"><span class="onb-check" style="color:${tk.done?"var(--ok)":"var(--faint)"}"><i class="ti ${tk.done?"ti-circle-check-filled":"ti-printer"}"></i></span><div class="onb-task-main"><span class="onb-task-label">${esc(tk.label)}${onbEs(tk.key)?`<br><i style="font-weight:400;color:var(--sub);font-size:12.5px">${onbEs(tk.key)}</i>`:""}</span><span style="font-size:12.5px;color:var(--sub)">${tk.done?("Signed at the office"+(tk.ts?" \u00b7 "+new Date(tk.ts).toLocaleDateString():"")):(t("The office will print this with your details already on it. You just sign it in person.")+" \u00b7 La oficina lo imprimir\u00e1 con sus datos; usted solo lo firma en persona.")}</span>${tk.link?`<a class="onb-task-link" href="${esc(tk.link)}" target="_blank" rel="noopener"><i class="ti ti-download"></i> Download the official form \u00b7 Descargar el formulario oficial</a>`:""}</div></div>`;
 }
 function onbAdminOfficeRow(o,t){
   return `<div class="onb-prow ${t.done?"done":""}"><i class="ti ${t.done?"ti-circle-check-filled":"ti-printer"}" style="color:${t.done?"var(--ok)":"var(--warn)"}"></i><span style="flex:1;min-width:0">${esc(t.label)}</span><button class="linkbtn" onclick="event.stopPropagation();onbSheet('${o.id}','${t.key}')"><i class="ti ti-printer"></i> Print sheet</button><button class="linkbtn" onclick="event.stopPropagation();onbOfficeToggle('${o.id}','${t.key}')">${t.done?"Undo":"Mark signed"}</button></div>`;
@@ -2053,7 +2054,18 @@ function onbView(r){
           ${t.done&&t.sig?`<span class="onb-signed">Signed by ${esc(t.sig)} \u00b7 ${t.ts?new Date(t.ts).toLocaleDateString():""}</span>`:""}
           ${state._sigKey===t.key&&!t.done?`<div class="onb-sig"><input id="sigIn" placeholder="Type your full legal name to sign" maxlength="80"><button class="btn btn-primary btn-sm" onclick="onbSign('${t.key}')">Sign</button></div>`:""}
         </div></div>`)).join("")}</div>`; }).join("");
-  const doneMsg = pct===100 ? `<div class="onb-complete"><i class="ti ti-confetti"></i> All done. Welcome aboard. The office will follow up on anything that needs a signature in person.</div>` : "";
+  if(pct===100){
+    const fn=((r.name||"").split(" ")[0])||"";
+    return `<div class="onb-wrap"><div class="onb-hero"><div class="onb-logo"><img src="${LOGO_DATA_URI}" alt=""></div>
+      <div style="font-size:56px;margin:6px 0"><i class="ti ti-confetti" style="color:var(--ok)"></i></div>
+      <h1 class="onb-title serif">All done, ${esc(fn)}!</h1>
+      <p class="onb-sub">Everything is complete and saved. The office will follow up on anything that needs a signature in person. Welcome aboard!<br><i>\u00a1Todo listo! Su informaci\u00f3n qued\u00f3 guardada. La oficina le avisar\u00e1 si algo requiere firma en persona. \u00a1Bienvenido al equipo!</i></p></div>
+      <div class="card" style="text-align:center;padding:22px">
+        <button class="btn btn-primary" style="width:100%" onclick="location.hash='';location.reload()"><i class="ti ti-home"></i> Go to the Hub \u00b7 Ir al Hub</button>
+        <div style="font-size:12.5px;color:var(--faint);margin-top:10px">Or simply close this page \u00b7 O simplemente cierre esta p\u00e1gina</div>
+      </div></div>`;
+  }
+  const doneMsg = "";
   const first=((r.name||"").split(" ")[0])||"there";
   return `<div class="onb-wrap">
     <div class="onb-hero"><div class="onb-logo"><img src="${LOGO_DATA_URI}" alt=""></div><h1 class="onb-title serif">Welcome, ${esc(first)}</h1><p class="onb-sub">Work through these at your own pace. Your progress saves as you go, so you can stop and come back.<br><i>Avance a su propio ritmo. Su progreso se guarda, puede pausar y volver cuando quiera.</i></p></div>
