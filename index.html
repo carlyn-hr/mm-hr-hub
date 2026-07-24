@@ -1912,21 +1912,29 @@ function onbPanel(i){
 }
 function onbReceipt(i){
   const o=(state.rec.onbs||[])[i]; if(!o)return;
-  const tasks=o.tasks||[]; const kind=onbKind(tasks)==="remote"?"Remote contractor":"US crew (California W-2)";
-  const lines=["M & M Solutions LLC","Onboarding record and acknowledgment receipt","", "Name: "+(o.name||""),"Role: "+(o.role||""),"Checklist: "+kind,"Code: "+(o.code||""),"Generated: "+new Date().toLocaleString(),""];
-  let g="";
-  tasks.forEach(t=>{ if(t.group!==g){ g=t.group; lines.push(""); lines.push(g.toUpperCase()); }
-    let l=(t.done?"[x] ":"[ ] ")+t.label;
-    if(t.sig) l+="  |  Signed by "+t.sig+(t.ts?" on "+new Date(t.ts).toLocaleString():"");
-    else if(t.done&&t.ts) l+="  |  Completed "+new Date(t.ts).toLocaleString();
-    lines.push(l);
-    if(t.key==="policy_review"&&t.review){ POLICIES.forEach(p=>{ const s=t.review[p.name]||{}; let pl="      "+(s.a?"[x] ":"[ ] ")+p.name; if(s.o) pl+="  |  Opened "+new Date(s.o).toLocaleString(); if(s.a) pl+="  |  Acknowledged "+new Date(s.a).toLocaleString(); lines.push(pl); }); } });
-  lines.push(""); lines.push("This receipt was generated from the M & M Solutions HR Hub. Signatures were typed by the new hire on their private onboarding page and are stored with a timestamp.");
-  const blob=new Blob([lines.join("\n")],{type:"text/plain"});
-  const aEl=document.createElement("a"); aEl.href=URL.createObjectURL(blob);
-  aEl.download="onboarding-"+((o.name||"hire").replace(/[^a-z0-9]+/gi,"-").toLowerCase())+"-acknowledgments.txt";
-  document.body.appendChild(aEl); aEl.click(); document.body.removeChild(aEl); URL.revokeObjectURL(aEl.href);
-  toast("Receipt downloaded");
+  const tasks=(o.tasks||[]).filter(t=>t.key!=="_ackonly");
+  const kind=onbKind(tasks)==="remote"?"Remote contractor":"US crew (California W-2)";
+  const fD=ts=>ts?new Date(ts).toLocaleString():"";
+  const row=t=>`<tr><td>${esc(t.label)}</td><td>${t.done?(t.sig?`<b>${esc(t.sig)}</b>`:"Completed"):"Not yet"}</td><td>${t.done?fD(t.ts):""}</td></tr>`;
+  const prv=tasks.find(t=>t.key==="policy_review");
+  const prows=prv&&prv.review?POLICIES.filter(p=>prv.review[p.name]&&prv.review[p.name].a).map(p=>`<tr><td style="padding-left:22px;color:#5a6b85">${esc(p.name)}</td><td>Acknowledged</td><td>${fD(prv.review[p.name].a)}</td></tr>`).join(""):"";
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>Signed acknowledgments, ${esc(o.name||"")}</title><style>
+   body{font-family:Georgia,serif;color:#22304a;max-width:700px;margin:36px auto;padding:0 24px;font-size:13.5px;line-height:1.55}
+   .co{font-size:22px;font-weight:bold;color:#2b5785}.tag{font-size:11px;color:#5a6b85;letter-spacing:1px;text-transform:uppercase}
+   h2{font-size:16px;margin:14px 0 4px} .meta{color:#5a6b85;font-size:12.5px}
+   table{width:100%;border-collapse:collapse;margin:14px 0} td{border:1px solid #c9d2e0;padding:7px 9px;vertical-align:top}
+   tr:first-child td{background:#f2f5f9;font-weight:bold}
+   .foot{font-size:11.5px;color:#5a6b85;margin-top:18px;border-top:1px solid #c9d2e0;padding-top:10px}
+   .pr{margin:20px 0;text-align:center}.pr button{font-family:Arial;font-size:14px;font-weight:bold;color:#fff;background:#2b5785;border:none;border-radius:8px;padding:11px 22px;cursor:pointer}
+   @media print{.pr{display:none}}</style></head><body>
+   <div class="co">M &amp; M SOLUTIONS</div><div class="tag">Onboarding record and signed acknowledgments</div>
+   <h2>${esc(o.name||"")}</h2>
+   <div class="meta">${esc(o.role||"")} \u00b7 ${kind} \u00b7 Code ${esc(o.code||"")} \u00b7 Generated ${new Date().toLocaleString()}</div>
+   <table><tr><td>Step</td><td>Signature / status</td><td>Date and time</td></tr>${tasks.map(row).join("")}${prows}</table>
+   <p class="foot">Signatures were typed by ${esc(o.name||"the new hire")} on their private onboarding page and stored with a timestamp by the M &amp; M Solutions HR Hub. This document certifies the record as of the generation time above.</p>
+   <div class="pr"><button onclick="window.print()">Print or save as PDF</button></div></body></html>`;
+  const w=window.open("","_blank"); if(!w){ toast("Allow pop-ups to open the document"); return; }
+  w.document.write(html); w.document.close();
 }
 async function onbDelete(id){
   if(!confirm("Delete this onboarding permanently? The new-hire link will stop working."))return;
