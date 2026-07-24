@@ -1571,10 +1571,10 @@ const ONBOARD_TEMPLATE_US=[
  {key:"ack_handbook",group:"Read and acknowledge",label:"I have read and I acknowledge the Employee Handbook and every policy in it"},
  {key:"read_sh",group:"Read and acknowledge",label:"Read the Sexual Harassment Policy",link:"https://drive.google.com/file/d/1zeq44QjkR8Em0d_O1tYld0Ypq1H9yMsJ/view?usp=sharing"},
  {key:"ack_sh",group:"Read and acknowledge",label:"I have read and I acknowledge the Sexual Harassment Policy"},
- {key:"wage_notice",group:"Read and acknowledge",label:"Review your California wage notice (Labor Code 2810.5), given by the office"},
- {key:"wc_pamphlet",group:"Read and acknowledge",label:"Review the workers' compensation Time of Hire pamphlet, given by the office"},
- {key:"ca_notices",group:"Read and acknowledge",label:"Review the California new-hire notices packet: harassment pamphlet, victims' rights, lactation, and paid sick leave"},
- {key:"confid",group:"Read and acknowledge",label:"Sign the Confidentiality Agreement (from the office)"},
+ {key:"wage_notice",group:"Read and acknowledge",label:"Review your California wage notice (Labor Code 2810.5)",link:"https://www.dir.ca.gov/dlse/lc_2810.5_notice.pdf"},
+ {key:"wc_pamphlet",group:"Read and acknowledge",label:"Review the workers' compensation Time of Hire pamphlet",link:"https://www.dir.ca.gov/dwc/DWCPamphlets/TimeOfHirePamphlet.pdf"},
+ {key:"ca_notices",group:"Read and acknowledge",label:"Review the California new-hire notices packet: harassment pamphlet, victims' rights, lactation, and paid sick leave",link:"https://www.dir.ca.gov/wpnodb.html"},
+ {key:"confid",group:"Read and acknowledge",label:"Read and sign the Confidentiality Agreement"},
  {key:"harass_trn",group:"Required training",label:"Complete harassment prevention training"},
  {key:"iipp",group:"Required training",label:"Complete IIPP and safety orientation"},
  {key:"sds",group:"Required training",label:"Complete chemical and SDS safety"},
@@ -1955,10 +1955,10 @@ const ONB_ES={
  ack_handbook:"He le\u00eddo y reconozco el Manual del Empleado y todas sus pol\u00edticas",
  read_sh:"Lea la Pol\u00edtica de Acoso Sexual",
  ack_sh:"He le\u00eddo y reconozco la Pol\u00edtica de Acoso Sexual",
- wage_notice:"Revise su aviso de salario de California (entregado por la oficina)",
- wc_pamphlet:"Revise el folleto de compensaci\u00f3n de trabajadores (de la oficina)",
+ wage_notice:"Revise su aviso de salario de California (C\u00f3digo Laboral 2810.5)",
+ wc_pamphlet:"Revise el folleto de compensaci\u00f3n de trabajadores",
  ca_notices:"Revise el paquete de avisos de California para nuevos empleados",
- confid:"Firme el Acuerdo de Confidencialidad (de la oficina)",
+ confid:"Lea y firme el Acuerdo de Confidencialidad",
  contact:"Llene sus datos de contacto y contacto de emergencia",
  agreement:"Firme su Acuerdo de Contratista Independiente",
  payment:"Confirme su m\u00e9todo de pago",
@@ -2049,7 +2049,7 @@ function onbView(r){
     return `<div class="onb-group"><div class="onb-group-h">${esc(t(g))}${ONB_ES_G[g]?` \u00b7 ${ONB_ES_G[g]}`:""}</div>${items.map(t=>t.key==="policy_review"?prvBlock(t):(t.office?onbOfficeRow(t):`<div class="onb-task ${t.done?"done":""}">
         <button class="onb-check" onclick="onbToggle('${t.key}')"><i class="ti ${t.done?"ti-circle-check-filled":"ti-circle"}"></i></button>
         <div class="onb-task-main"><span class="onb-task-label">${esc(t.label)}${onbEs(t.key)?`<br><i style="font-weight:400;color:var(--sub);font-size:12.5px">${onbEs(t.key)}</i>`:""}</span>
-          ${t.link?`<a class="onb-task-link" href="${esc(t.link)}" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Open</a>`:""}
+          ${t.link?`<a class="onb-task-link" href="${esc(t.link)}" target="_blank" rel="noopener" onclick="onbLinkDone('${t.key}')"><i class="ti ti-download"></i> Download \u00b7 Descargar</a>`:""}
           ${t.form?`<button class="onb-task-link" onclick="onbFillForm('${t.form}')"><i class="ti ti-forms"></i> Fill it out here</button>`:""}
           ${t.done&&t.sig?`<span class="onb-signed">Signed by ${esc(t.sig)} \u00b7 ${t.ts?new Date(t.ts).toLocaleDateString():""}</span>`:""}
           ${state._sigKey===t.key&&!t.done?`<div class="onb-sig"><input id="sigIn" placeholder="Type your full legal name to sign" maxlength="80"><button class="btn btn-primary btn-sm" onclick="onbSign('${t.key}')">Sign</button></div>`:""}
@@ -2073,12 +2073,18 @@ function onbView(r){
     ${doneMsg}${secs}
     <div class="onb-foot">Questions about any step? Contact the office. This page is just for you.<br><i>\u00bfPreguntas? Contacte a la oficina. Esta p\u00e1gina es solo para usted.</i></div></div>`;
 }
+async function onbLinkDone(key){
+  const r=state.onboardRec; if(!r)return; const tk=(r.tasks||[]).find(x=>x.key===key);
+  if(!tk||tk.done||tk.office||tk.form||key.indexOf("ack_")===0||key==="confid"||key==="policy_review")return;
+  tk.done=true; tk.ts=new Date().toISOString();
+  await onbPersist(); renderOnboard(); toast("Marked as reviewed \u00b7 Marcado como revisado");
+}
 async function onbToggle(key){
   const r=state.onboardRec; if(!r)return; const tk=(r.tasks||[]).find(x=>x.key===key); if(!tk)return;
   if(tk.office){ toast(t("The office prepares this one. You will sign it in person.")); return; }
   if(key==="policy_review"){ if(!tk.done) toast(t("Open each policy below and acknowledge it first")); return; }
   if(key==="ack_handbook" && !tk.done){ const pr=(r.tasks||[]).find(x=>x.key==="policy_review"); if(pr&&!pr.done){ toast(t("First acknowledge every policy in the review above")); return; } }
-  if(!tk.done && key.indexOf("ack_")===0){ state._sigKey = state._sigKey===key?null:key; renderOnboard(); return; }
+  if(!tk.done && (key.indexOf("ack_")===0||key==="confid")){ state._sigKey = state._sigKey===key?null:key; renderOnboard(); return; }
   tk.done=!tk.done; tk.ts=tk.done?new Date().toISOString():null; if(!tk.done) tk.sig=null;
   await onbPersist();
 }
