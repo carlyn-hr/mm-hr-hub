@@ -1993,7 +1993,7 @@ async function onbAcceptOffer(){
   renderOnboard();
 }
 function onbOfficeRow(tk){
-  return `<div class="onb-task ${tk.done?"done":""}"><span class="onb-check" style="color:${tk.done?"var(--ok)":"var(--faint)"}"><i class="ti ${tk.done?"ti-circle-check-filled":"ti-printer"}"></i></span><div class="onb-task-main"><span class="onb-task-label">${esc(tk.label)}${onbEs(tk.key)?`<br><i style="font-weight:400;color:var(--sub);font-size:12.5px">${onbEs(tk.key)}</i>`:""}</span><span style="font-size:12.5px;color:var(--sub)">${tk.done?("Signed at the office"+(tk.ts?" \u00b7 "+new Date(tk.ts).toLocaleDateString():"")):(t("The office will print this with your details already on it. You just sign it in person.")+" \u00b7 La oficina lo imprimir\u00e1 con sus datos; usted solo lo firma en persona.")}</span>${tk.link?`<a class="onb-task-link" href="${esc(tk.link)}" target="_blank" rel="noopener"><i class="ti ti-download"></i> Download the official form \u00b7 Descargar el formulario oficial</a>`:""}</div></div>`;
+  return `<div class="onb-task ${tk.done?"done":""}"><span class="onb-check" style="color:${tk.done?"var(--ok)":"var(--faint)"}"><i class="ti ${tk.done?"ti-circle-check-filled":"ti-printer"}"></i></span><div class="onb-task-main"><span class="onb-task-label">${esc(tk.label)}${onbEs(tk.key)?`<br><i style="font-weight:400;color:var(--sub);font-size:12.5px">${onbEs(tk.key)}</i>`:""}</span><span style="font-size:12.5px;color:var(--sub)">${tk.done?("Signed at the office"+(tk.ts?" \u00b7 "+new Date(tk.ts).toLocaleDateString():"")):(t("The office will print this with your details already on it. You just sign it in person.")+" \u00b7 La oficina lo imprimir\u00e1 con sus datos; usted solo lo firma en persona.")}</span>${tk.link?`<a class="onb-task-link" href="${esc(tk.link)}" target="_blank" rel="noopener" onclick="onbLinkDone('${tk.key}')"><i class="ti ti-download"></i> Download the official form \u00b7 Descargar el formulario oficial</a>`:""}</div></div>`;
 }
 function onbAdminOfficeRow(o,t){
   return `<div class="onb-prow ${t.done?"done":""}"><i class="ti ${t.done?"ti-circle-check-filled":"ti-printer"}" style="color:${t.done?"var(--ok)":"var(--warn)"}"></i><span style="flex:1;min-width:0">${esc(t.label)}</span><button class="linkbtn" onclick="event.stopPropagation();onbSheet('${o.id}','${t.key}')"><i class="ti ti-printer"></i> Print sheet</button><button class="linkbtn" onclick="event.stopPropagation();onbOfficeToggle('${o.id}','${t.key}')">${t.done?"Undo":"Mark signed"}</button></div>`;
@@ -2052,7 +2052,7 @@ function onbView(r){
           ${t.link?`<a class="onb-task-link" href="${esc(t.link)}" target="_blank" rel="noopener" onclick="onbLinkDone('${t.key}')"><i class="ti ti-download"></i> Download \u00b7 Descargar</a>`:""}
           ${t.form?`<button class="onb-task-link" onclick="onbFillForm('${t.form}')"><i class="ti ti-forms"></i> Fill it out here</button>`:""}
           ${t.done&&t.sig?`<span class="onb-signed">Signed by ${esc(t.sig)} \u00b7 ${t.ts?new Date(t.ts).toLocaleDateString():""}</span>`:""}
-          ${state._sigKey===t.key&&!t.done?`<div class="onb-sig"><input id="sigIn" placeholder="Type your full legal name to sign" maxlength="80"><button class="btn btn-primary btn-sm" onclick="onbSign('${t.key}')">Sign</button></div>`:""}
+          ${state._sigKey===t.key&&!t.done?`${t.key==="confid"?`<div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin:10px 0;font-size:13px;line-height:1.65;color:var(--text)"><b>Confidentiality Agreement \u00b7 Acuerdo de Confidencialidad</b><br>In the course of my work with M &amp; M Solutions I may learn confidential information: client names, addresses, entry codes and keys, schedules, pricing, and business practices. I agree to keep all of it private, to use it only for my work, to never share codes or keys, and to return all company and client property when my work ends. This obligation continues after my employment or engagement ends.<br><i style="color:var(--sub)">Durante mi trabajo con M &amp; M Solutions puedo conocer informaci\u00f3n confidencial: nombres y direcciones de clientes, c\u00f3digos de entrada y llaves, horarios, precios y pr\u00e1cticas del negocio. Acepto mantener todo en privado, usarlo solo para mi trabajo, nunca compartir c\u00f3digos ni llaves, y devolver toda propiedad de la empresa y de los clientes al terminar. Esta obligaci\u00f3n contin\u00faa despu\u00e9s de terminar mi empleo o contrato.</i></div>`:""}<div class="onb-sig"><input id="sigIn" placeholder="Type your full legal name to sign" maxlength="80"><button class="btn btn-primary btn-sm" onclick="onbSign('${t.key}')">Sign</button></div>`:""}
         </div></div>`)).join("")}</div>`; }).join("");
   if(pct===100){
     const fn=((r.name||"").split(" ")[0])||"";
@@ -2075,7 +2075,7 @@ function onbView(r){
 }
 async function onbLinkDone(key){
   const r=state.onboardRec; if(!r)return; const tk=(r.tasks||[]).find(x=>x.key===key);
-  if(!tk||tk.done||tk.office||tk.form||key.indexOf("ack_")===0||key==="confid"||key==="policy_review")return;
+  if(!tk||tk.done||tk.form||key.indexOf("ack_")===0||key==="confid"||key==="policy_review")return;
   tk.done=true; tk.ts=new Date().toISOString();
   await onbPersist(); renderOnboard(); toast("Marked as reviewed \u00b7 Marcado como revisado");
 }
@@ -2566,7 +2566,9 @@ function prvBlock(tk){
   const total=POLICIES.length, acked=POLICIES.filter(p=>rev[p.name]&&rev[p.name].a).length;
   let rows="", lastCat=null;
   POLICIES.forEach((p,i)=>{
-    if(p.category!==lastCat){ lastCat=p.category; rows+=`<div class="prv-cat">${esc(catName(p.category))}</div>`; }
+    if(p.category!==lastCat){ lastCat=p.category;
+      const catAll=POLICIES.filter(x=>x.category===p.category), catAck=catAll.filter(x=>rev[x.name]&&rev[x.name].a).length;
+      rows+=`<div class="prv-cat" style="display:flex;align-items:center;gap:8px">${esc(catName(p.category))}<span style="flex:1"></span>${catAck===catAll.length?`<span style="color:var(--ok);font-weight:700;font-size:11px"><i class="ti ti-circle-check-filled"></i> Acknowledged</span>`:`<button class="linkbtn" style="font-size:11.5px" onclick="prvAckCat('${esc(p.category)}')"><i class="ti ti-checks"></i> Acknowledge this section \u00b7 Reconocer</button>`}</div>`; }
     const s=rev[p.name]||{}; const isOpen=state._prvOpen===i;
     rows+=`<div class="prv-item ${s.a?"acked":""} ${isOpen?"open":""}">
       <button class="prv-head" onclick="prvToggle(${i})">
@@ -2596,6 +2598,13 @@ function prvToggle(i){
   const p=POLICIES[i];
   if(p){ const s=tk.review[p.name]=tk.review[p.name]||{}; if(!s.o){ s.o=new Date().toISOString(); prvSave(); } }
   renderOnboard();
+}
+async function prvAckCat(cat){
+  const tk=(state.onboardRec.tasks||[]).find(x=>x.key==="policy_review"); if(!tk)return;
+  tk.review=tk.review||{}; const now=new Date().toISOString();
+  POLICIES.filter(p=>p.category===cat).forEach(p=>{ tk.review[p.name]=tk.review[p.name]||{}; tk.review[p.name].a=tk.review[p.name].a||now; });
+  if(POLICIES.every(p=>tk.review[p.name]&&tk.review[p.name].a)){ tk.done=true; tk.ts=now; }
+  await onbPersist(); renderOnboard();
 }
 function prvAck(i){
   const r=state.onboardRec; if(!r)return; const tk=(r.tasks||[]).find(x=>x.key==="policy_review"); if(!tk)return;
