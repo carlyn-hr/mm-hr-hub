@@ -2041,6 +2041,15 @@ function onbSheet(id,key){
   w.document.write(html); w.document.close();
 }
 function onbEntry(bad){
+  if(!state._onbLang){
+    return `<div class="onb-wrap"><div class="onb-hero"><div class="onb-logo"><img src="${LOGO_DATA_URI}" alt=""></div>
+      <h1 class="onb-title serif">Welcome \u00b7 Bienvenido</h1>
+      <p class="onb-sub">Choose your language \u00b7 Elija su idioma</p></div>
+      <div class="card" style="padding:22px;display:flex;flex-direction:column;gap:10px">
+        <button class="btn btn-primary" style="width:100%;font-size:17px;padding:14px" onclick="state._onbLang=1;setLang('en')">English</button>
+        <button class="btn btn-primary" style="width:100%;font-size:17px;padding:14px" onclick="state._onbLang=1;setLang('es')">Espa\u00f1ol</button>
+      </div></div>`;
+  }
   const pre=!!(state.onboardCode&&!bad);
   const sub=pre?"Your code is filled in below. Tap Start to begin. \u00b7 Su c\u00f3digo ya est\u00e1 abajo. Toque Comenzar.":"Enter the onboarding code the office gave you. \u00b7 Escriba el c\u00f3digo que le dio la oficina.";
   return `<div class="onb-wrap"><div class="onb-hero"><div class="onb-logo"><img src="${LOGO_DATA_URI}" alt=""></div><h1 class="onb-title serif">Welcome to M &amp; M Solutions</h1><p class="onb-sub">${sub}</p></div>
