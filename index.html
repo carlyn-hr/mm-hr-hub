@@ -988,7 +988,13 @@ async function loadPolicies(){
 }
 async function refresh(){
   try{ EMP=await DB.employees(); REQ=await DB.requests(); ATT=await DB.attendance(); }
-  catch(e){ console.error(e); if(LIVE){LIVE=false;applyBranding();toast("Database unreachable, using demo data");EMP=await DB.employees();REQ=await DB.requests();ATT=await DB.attendance();} }
+  catch(e){ console.error(e);
+    if(LIVE){
+      if(EMP&&EMP.length){ toast("No signal. Showing the last loaded data \u00b7 Sin se\u00f1al"); }
+      else { LIVE=false;applyBranding();toast("Database unreachable, using demo data");EMP=await DB.employees();REQ=await DB.requests();ATT=await DB.attendance(); }
+    }
+  }
+  if(typeof OFFQ!=="undefined"&&LIVE){ const _p=OFFQ.pending(); for(const it of _p){ const r=it.row; const ex=(ATT||[]).find(a=>a.id===r.id); if(ex&&!ex.clock_out) Object.assign(ex,r); else if(!ex&&it.isNew) ATT.push(JSON.parse(JSON.stringify(r))); } }
   /* Directory status is the source of truth: anyone marked Separated there is removed
      from the active roster (Clock, Timekeeping, Time off), and their leftover active
      roster rows are deactivated in the database so the fix sticks. History is kept. */
@@ -3205,16 +3211,44 @@ function clockTeamSummary(){
 }
 function setClockLoc(loc){ state.clockLoc=loc; const key=loc==="remote"?"ph":"ca"; const list=EMP.filter(e=>e.team===key); state.clockId=list[0]?list[0].id:null; renderAttendance(); }
 function tickClock(){const el=$("#liveClock"),d=$("#liveDate");if(!el)return;const now=new Date();el.textContent=now.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"});if(d)d.textContent=now.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"});}
+const OFFQ={
+  load(){ try{ return JSON.parse(localStorage.getItem("mm_punchq")||"{}"); }catch(e){ return {}; } },
+  save(q){ try{ localStorage.setItem("mm_punchq",JSON.stringify(q)); }catch(e){} },
+  put(row,isNew){ if(!LIVE) return; const q=this.load(); const prev=q[row.id];
+    q[row.id]={ isNew: !!(isNew||(prev&&prev.isNew)||String(row.id).indexOf("off")===0), row:row };
+    this.save(q); },
+  pending(){ const q=this.load(); return Object.keys(q).map(k=>q[k]); },
+  clear(id){ const q=this.load(); delete q[id]; this.save(q); },
+  syncing:false,
+  async sync(){
+    if(this.syncing||!LIVE) return; const items=this.pending(); if(!items.length) return;
+    if(typeof navigator!=="undefined"&&navigator.onLine===false) return;
+    this.syncing=true; let ok=0;
+    for(const it of items){ const r=it.row; try{
+      if(it.isNew){
+        const core={employee_id:r.employee_id,employee_name:r.employee_name,team:r.team,kind:r.kind||"work",clock_in:r.clock_in,clock_out:r.clock_out||null,hours:(r.hours==null?null:r.hours),site:r.site||"",lat:r.lat||null,lng:r.lng||null,breaks:Array.isArray(r.breaks)?r.breaks:[]};
+        await DB.clockIn(core);
+      } else {
+        if(Array.isArray(r.breaks)) await DB.updateEntry(r.id,{breaks:r.breaks});
+        if(r.clock_out) await DB.clockOut(r.id,r.clock_out,r.hours);
+      }
+      this.clear(r.id); ok++;
+    }catch(e){ break; } }
+    this.syncing=false;
+    if(ok){ toast("Synced "+ok+" saved punch"+(ok===1?"":"es")+" \u00b7 Sincronizado"); try{ await refresh(); if(state.module==="clock"||state.module==="attendance") renderAttendance(); }catch(e){} }
+  }
+};
+if(typeof window!=="undefined"){ window.addEventListener("online",()=>OFFQ.sync()); setInterval(()=>OFFQ.sync(),60000); setTimeout(()=>OFFQ.sync(),4000); }
 async function atDoClockIn(empId){
   const e=emp(empId);if(!e)return;
-  const dup=await DB.openEntry(e.id);
+  let dup=null; try{ dup=await DB.openEntry(e.id); }catch(err){ dup=ATT.find(x=>x.employee_id===e.id&&!x.clock_out)||null; }
   if(dup){ toast(`${e.name.split(" ")[0]} is already clocked in`); await refresh(); renderAttendance(); return; }
   const remote = state.clockLoc==="remote";
   const siteEl=$("#clockSite");const site=remote?"Remote":(siteEl?siteEl.value.trim():"");
   const kindEl=$("#clockKind");const kind=remote?"remote":(kindEl?kindEl.value:"work");
   const rec={employee_id:e.id,employee_name:e.name,team:e.team,kind,clock_in:new Date().toISOString(),clock_out:null,hours:null,site,lat:null,lng:null};
   const verb={travel:"started travel",office:"clocked in at the office",work:"clocked in onsite",remote:"clocked in"}[kind]||"clocked in";
-  const finish=async()=>{try{await DB.clockIn(rec);await refresh();toast(`${e.name.split(" ")[0]} ${verb}`);renderAttendance();}catch(err){toast("Clock-in failed");}};
+  const finish=async()=>{try{await DB.clockIn(rec);await refresh();toast(`${e.name.split(" ")[0]} ${verb}`);renderAttendance();}catch(err){ if(LIVE){ const row=Object.assign({},rec,{id:"off"+uid(),breaks:[]}); ATT.push(row); OFFQ.put(row,true); toast("Saved on your phone, will sync when you have signal \u00b7 Guardado en su tel\u00e9fono, se enviar\u00e1 con se\u00f1al"); renderAttendance(); } else { toast("Clock-in failed"); } }};
   if(!remote && navigator.geolocation){navigator.geolocation.getCurrentPosition(p=>{rec.lat=+p.coords.latitude.toFixed(5);rec.lng=+p.coords.longitude.toFixed(5);finish();},()=>finish(),{timeout:8000,enableHighAccuracy:true});}
   else finish();
 }
@@ -3223,23 +3257,32 @@ async function atClockOut(id){
   const out=new Date().toISOString();
   const breaks=Array.isArray(a.breaks)?a.breaks.map(b=>({...b})):[];
   breaks.forEach(b=>{ if(!b.end) b.end=out; });
+  if(entryOnsite(a)){ grabLoc(loc=>{ if(loc){ setTimeout(()=>{
+    const marks=Array.isArray(a.breaks)?a.breaks.map(b=>({...b})):breaks.map(b=>({...b}));
+    marks.push({kind:"out_loc",start:out,end:out,lat:loc.lat,lng:loc.lng});
+    a.breaks=marks;
+    try{ if(String(a.id).indexOf("off")!==0) DB.updateEntry(a.id,{breaks:marks}); else OFFQ.put(JSON.parse(JSON.stringify(a))); }catch(e){}
+  },1200); } }); }
   let unpaid=0; breaks.forEach(b=>{ if(b.kind==="meal"&&b.start&&b.end) unpaid+=Math.max(0,new Date(b.end)-new Date(b.start)); });
   const hrs=Math.round((((new Date(out)-new Date(a.clock_in))-unpaid)/3600000)*100)/100;
-  try{ await DB.clockOut(id,out,hrs); if(breaks.length) await DB.updateEntry(id,{breaks}); await refresh(); toast(`Clocked out \u00b7 ${hrs}h`); renderAttendance(); }catch(e){ toast("Clock-out failed"); }
+  try{ if(String(id).indexOf("off")===0) throw 0; await DB.clockOut(id,out,hrs); if(breaks.length) await DB.updateEntry(id,{breaks}); await refresh(); toast(`Clocked out \u00b7 ${hrs}h`); renderAttendance(); }catch(e){ if(LIVE&&a){ a.breaks=breaks; a.clock_out=out; a.hours=hrs; OFFQ.put(JSON.parse(JSON.stringify(a))); toast("Saved on your phone, will sync when you have signal \u00b7 Guardado en su tel\u00e9fono, se enviar\u00e1 con se\u00f1al"); renderAttendance(); } else toast("Clock-out failed"); }
 }
 async function atStartBreak(id,kind){
   const a=ATT.find(x=>x.id===id);if(!a)return;
   const breaks=Array.isArray(a.breaks)?a.breaks.map(b=>({...b})):[];
   if(breaks.some(b=>!b.end)){ toast(t("Already on break")); return; }
-  breaks.push({kind,start:new Date().toISOString(),end:null});
-  try{ await DB.updateEntry(id,{breaks}); await refresh(); toast(kind==="meal"?t("Meal break started"):t("Rest break started")); renderAttendance(); }catch(e){ toast("Failed"); }
+  const nb={kind,start:new Date().toISOString(),end:null};
+  breaks.push(nb);
+  if(entryOnsite(a)) grabLoc(loc=>{ if(loc){ nb.slat=loc.lat; nb.slng=loc.lng; try{ if(String(id).indexOf("off")!==0) DB.updateEntry(id,{breaks}); else OFFQ.put(JSON.parse(JSON.stringify(a))); }catch(e){} } });
+  try{ if(String(id).indexOf("off")===0) throw 0; await DB.updateEntry(id,{breaks}); await refresh(); toast(kind==="meal"?t("Meal break started"):t("Rest break started")); renderAttendance(); }catch(e){ if(LIVE&&a){ a.breaks=breaks; OFFQ.put(JSON.parse(JSON.stringify(a))); toast("Saved on your phone, will sync when you have signal \u00b7 Guardado en su tel\u00e9fono, se enviar\u00e1 con se\u00f1al"); renderAttendance(); } else toast("Failed"); }
 }
 async function atEndBreak(id){
   const a=ATT.find(x=>x.id===id);if(!a)return;
   const breaks=Array.isArray(a.breaks)?a.breaks.map(b=>({...b})):[];
   const open=breaks.filter(b=>!b.end).pop(); if(!open)return;
   open.end=new Date().toISOString();
-  try{ await DB.updateEntry(id,{breaks}); await refresh(); toast(t("Break ended")); renderAttendance(); }catch(e){ toast("Failed"); }
+  if(entryOnsite(a)) grabLoc(loc=>{ if(loc){ open.elat=loc.lat; open.elng=loc.lng; try{ if(String(id).indexOf("off")!==0) DB.updateEntry(id,{breaks}); else OFFQ.put(JSON.parse(JSON.stringify(a))); }catch(e){} } });
+  try{ if(String(id).indexOf("off")===0) throw 0; await DB.updateEntry(id,{breaks}); await refresh(); toast(t("Break ended")); renderAttendance(); }catch(e){ if(LIVE&&a){ a.breaks=breaks; OFFQ.put(JSON.parse(JSON.stringify(a))); toast("Saved on your phone, will sync when you have signal \u00b7 Guardado en su tel\u00e9fono, se enviar\u00e1 con se\u00f1al"); renderAttendance(); } else toast("Failed"); }
 }
 
 /* ----- attendance admin ----- */
@@ -3287,7 +3330,27 @@ function atAdmin(){
     </div>`;
 }
 function sinceText(iso){const m=Math.floor((Date.now()-new Date(iso))/60000);if(m<60)return m+"m";const h=Math.floor(m/60);return h+"h "+(m%60)+"m";}
+function grabLoc(cb){
+  if(!navigator.geolocation){ cb(null); return; }
+  let done=false; const fin=v=>{ if(!done){ done=true; cb(v); } };
+  navigator.geolocation.getCurrentPosition(
+    p=>fin({lat:+p.coords.latitude.toFixed(5),lng:+p.coords.longitude.toFixed(5)}),
+    ()=>fin(null),{timeout:6000,enableHighAccuracy:true});
+  setTimeout(()=>fin(null),6500);
+}
+function entryOnsite(a){ return a && a.kind!=="remote"; }
 function mapLink(a){ return (a.lat&&a.lng)?` · <a href="https://www.google.com/maps?q=${a.lat},${a.lng}" target="_blank" rel="noopener" style="color:var(--accent)">map</a>`:""; }
+function pin(lat,lng,label){ return (lat&&lng)?` · <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener" style="color:var(--accent)">${label}</a>`:""; }
+function locTrail(a){
+  const bs=Array.isArray(a.breaks)?a.breaks:[]; let out="";
+  bs.forEach(b=>{
+    if(b.kind==="out_loc"){ out+=pin(b.lat,b.lng,"out map"); return; }
+    const nm=b.kind==="meal"?"meal":"rest";
+    out+=pin(b.slat,b.slng,nm+" map");
+    out+=pin(b.elat,b.elng,nm+" end map");
+  });
+  return out;
+}
 function staleFixModal(id){
   const a=(ATT||[]).find(x=>x.id===id); if(!a)return;
   const d=new Date(a.clock_in); const def=new Date(d.getTime()+8*3600000);
@@ -3347,7 +3410,7 @@ function teamBoards(){
     return `<div class="tp-card"><div class="tp-head"><span class="tp-title">${esc(g.title)}</span><span class="tp-count ${cls}">${present} / ${g.members.length} ${t("on the clock")}</span></div>${rows}</div>`;
   }).join("");
 }
-function atRow(a){const km={travel:"travel",office:"office",remote:"remote"};const tv=km[a.kind]?` · <span style="color:var(--warn)">${km[a.kind]}</span>`:"";const del=state.isSuper?`<button class="ic-btn" title="Delete this punch" onclick="deletePunch('${a.id}')" style="color:var(--bad);margin-left:4px"><i class="ti ti-trash"></i></button>`:"";return `<div class="req" style="padding:11px 13px;margin-bottom:9px"><div style="display:flex;align-items:center;gap:11px"><div class="avatar" style="width:30px;height:30px;font-size:11px;background:${avatarColor(a.team)}">${initials(a.employee_name)}</div><div style="flex:1"><div style="font-size:13.5px;font-weight:600">${esc(a.employee_name)}</div><div style="font-size:12px;color:var(--faint)">${fmtTime(a.clock_in)} ${a.clock_out?"→ "+fmtTime(a.clock_out):"→ ..."}${a.site?" · "+esc(a.site):""}${tv}${mapLink(a)}</div></div><span class="days-tag">${a.clock_out?a.hours+"h":'<span style="color:var(--ok)">active</span>'}</span>${del}</div></div>`;}
+function atRow(a){const km={travel:"travel",office:"office",remote:"remote"};const tv=km[a.kind]?` · <span style="color:var(--warn)">${km[a.kind]}</span>`:"";const del=state.isSuper?`<button class="ic-btn" title="Delete this punch" onclick="deletePunch('${a.id}')" style="color:var(--bad);margin-left:4px"><i class="ti ti-trash"></i></button>`:"";return `<div class="req" style="padding:11px 13px;margin-bottom:9px"><div style="display:flex;align-items:center;gap:11px"><div class="avatar" style="width:30px;height:30px;font-size:11px;background:${avatarColor(a.team)}">${initials(a.employee_name)}</div><div style="flex:1"><div style="font-size:13.5px;font-weight:600">${esc(a.employee_name)}</div><div style="font-size:12px;color:var(--faint)">${fmtTime(a.clock_in)} ${a.clock_out?"→ "+fmtTime(a.clock_out):"→ ..."}${a.site?" · "+esc(a.site):""}${tv}${mapLink(a)}${locTrail(a)}</div></div><span class="days-tag">${a.clock_out?a.hours+"h":'<span style="color:var(--ok)">active</span>'}</span>${del}</div></div>`;}
 
 function timesheetData(){
   const {start,end,team}=state.tsRange;
