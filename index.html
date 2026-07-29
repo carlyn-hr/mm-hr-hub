@@ -3162,8 +3162,8 @@ function atClock(){
       breakUI=`<div class="brk-row"><button class="brk-btn" onclick="atStartBreak('${open.id}','rest')"><i class="ti ti-coffee"></i> ${t("Rest break")}<small>${t("10 min, paid")}</small></button><button class="brk-btn" onclick="atStartBreak('${open.id}','meal')"><i class="ti ti-tools-kitchen-2"></i> ${t("Meal break")}<small>${t("30 min, unpaid")}</small></button></div>`;
     }
   }
-  const typeField = `<div class="site-field" style="margin-top:12px"><label style="font-size:12px;font-weight:600;color:var(--sub);display:block;margin-bottom:6px">${t("Type")}</label><select class="f-input" id="clockKind"><option value="office">${t("Office (in / out)")}</option><option value="travel">${t("Travel between sites")}</option><option value="work">${t("Work onsite / offsite")}</option></select></div>`;
-  const siteField = `<div class="site-field" style="margin-top:12px"><label style="font-size:12px;font-weight:600;color:var(--sub);display:block;margin-bottom:6px">${t("Site or address")}</label>${siteSel}</div>`;
+  const typeField = "";
+  const siteField = "";
   const gpsNote = `<div style="font-size:11px;color:var(--faint);margin-top:12px;display:flex;align-items:center;gap:5px;justify-content:center;text-align:center"><i class="ti ti-map-pin"></i> ${t("Your location is recorded at clock-in so the office can confirm you are at the site.")}</div>`;
   const remoteNote = `<div style="font-size:11px;color:var(--faint);margin-top:12px;display:flex;align-items:center;gap:5px;justify-content:center;text-align:center"><i class="ti ti-home"></i> ${t("Remote clock-in. No location is recorded.")}</div>`;
   const openNowRows=(ATT||[]).filter(a=>!a.clock_out);
