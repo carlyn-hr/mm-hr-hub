@@ -1152,7 +1152,7 @@ function dirIsNew(p){const hd=DIR_HIRE[dirNorm(p.name)];return hd && (""+hd).sli
 async function renderDirectory(){
   if(!state.isAdmin){ $("#view").innerHTML = pageHead("Directory","Employee directory","") + `<div class="empty"><i class="ti ti-lock"></i><p>Sign in as admin to view the employee directory.</p></div>`; return; }
   $("#view").innerHTML = pageHead("Directory","Employee directory","") + `<div class="card"><div style="color:var(--sub);font-size:13.5px"><i class="ti ti-loader-2"></i> Loading the crew...</div></div>`;
-  try{ PROFILES = await DB.profiles(); }
+  try{ PROFILES = await DB.profiles(); healRoster(); }
   catch(e){
     $("#view").innerHTML = pageHead("Directory","Employee directory","") + `<div class="empty"><i class="ti ti-database-off"></i><p>The directory isn't set up yet. Run the masterlist seed in Supabase, then refresh this page.</p></div>`;
     return;
@@ -1347,7 +1347,7 @@ function empPanelBuild(i){
   $("#pBody").innerHTML = sec("Contact",contact)+sec("Employment",employment)+sec(t("Team"),teamBlock)+sec(t("Key dates"),keyDates)+sec("Pay &amp; identity",identity)+sec("Emergency",emerg)+sec("Documents",docBlock)+sec("Files",filesBlock)+sec("Training",training||kvMuted("ti-clipboard","Status","Not tracked yet"))+sec("Sick / PTO",sick)+(notes?sec("Notes",notes):"");
   const sepd=(p.status||"").toLowerCase().indexOf("separat")===0;
   const empActions = canEdit ? (sepd
-    ? `<button class="btn btn-ghost" style="width:100%" onclick="empReactivate(${i})"><i class="ti ti-user-check"></i> Reactivate this employee</button>${state.isOwner?`<button class="btn btn-ghost" style="width:100%;margin-top:8px;color:var(--bad)" onclick="empErase(${i})"><i class="ti ti-trash-x"></i> Delete permanently</button>`:""}`
+    ? `<button class="btn btn-ghost" style="width:100%" onclick="sepDocsFromCard(${i})"><i class="ti ti-file-text"></i> Separation documents</button><button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="empReactivate(${i})"><i class="ti ti-user-check"></i> Reactivate this employee</button>${state.isOwner?`<button class="btn btn-ghost" style="width:100%;margin-top:8px;color:var(--bad)" onclick="empErase(${i})"><i class="ti ti-trash-x"></i> Delete permanently</button>`:""}`
     : `<button class="btn btn-ghost" style="width:100%;color:var(--bad)" onclick="empOffboardModal(${i})"><i class="ti ti-user-x"></i> Offboard / mark as separated</button>`) : "";
   $("#pFoot").innerHTML=empActions+`<div class="foot-note" style="margin-top:${empActions?"8px":"0"}">Tap the pencil next to the name to edit the name and details right here.</div>`;
   $("#panel").classList.add("open");$("#panelScrim").classList.add("open");$("#pBody").scrollTop=0;
@@ -1500,6 +1500,81 @@ async function empOffboard(i){
   closeModal(); closePanel(); await refresh();
   toast(((p.name||"").split(" ")[0]||"Employee")+" offboarded");
   renderDirectory();
+  sepDocsModal(p.name,date,reason,p);
+}
+function sepDocsFromCard(i){
+  const p=PROFILES[i]; if(!p)return;
+  const m=String(p.notes||"").match(/Separated (\d{4}-\d{2}-\d{2})(?: \(([^)]+)\))?/);
+  sepDocsModal(p.name,(m&&m[1])||new Date().toISOString().slice(0,10),(m&&m[2])||"Terminated",p);
+}
+function sepDocsModal(name,date,reason,prof){
+  window._sepProf=prof||null;
+  $("#modalBox").innerHTML=`<h3><i class="ti ti-file-text"></i> Separation documents</h3>
+    <p style="font-size:13px;color:var(--sub);line-height:1.5">${esc(name)} is marked Separated. Generate the paperwork below; each opens print-ready with a save-as-PDF button. Hand the final paycheck the same day for a termination, and give the EDD pamphlet DE 2320 with the letter.</p>
+    <div class="mrow" style="margin-top:8px"><label>Last day<input id="sdDate" type="date" value="${esc(date)}"></label>
+    <label>Reason<select id="sdReason">${["Terminated","Resigned","Laid off","End of assignment","Other"].map(r=>`<option ${r===reason?"selected":""}>${r}</option>`).join("")}</select></label></div>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Done</button><button class="btn btn-ghost" onclick="coeGen(${JSON.stringify(name)})"><i class="ti ti-certificate"></i> Certificate of Employment</button><button class="btn btn-primary" onclick="sepLetterGen(${JSON.stringify(name)})"><i class="ti ti-printer"></i> Separation letter</button></div>`;
+  openModal();
+}
+function _sepWin(html){ const w=window.open("","_blank"); if(!w){ toast("Allow pop-ups to open the document"); return; } w.document.write(html); w.document.close(); }
+function _sepCss(){ return `body{font-family:Georgia,serif;color:#22304a;max-width:660px;margin:40px auto;padding:0 26px;font-size:14.5px;line-height:1.66} .co{font-size:22px;font-weight:bold;color:#2b5785} .tag{font-size:11px;color:#5a6b85;letter-spacing:1px;text-transform:uppercase;margin-bottom:22px} p{margin:0 0 13px} .sig{margin-top:40px} .ln{border-top:1.5px solid #22304a;width:290px;padding-top:5px;font-size:13px;color:#5a6b85;margin-top:42px} .pr{margin:24px 0;text-align:center}.pr button{font-family:Arial;font-size:14px;font-weight:bold;color:#fff;background:#2b5785;border:none;border-radius:8px;padding:11px 22px;cursor:pointer} .pg{page-break-before:always;border-top:1px dashed #c9d2e0;margin-top:34px;padding-top:26px} h2{font-size:15px;text-align:center} .nt{font-size:12px;color:#5a6b85;font-style:italic} @media print{.pr{display:none}.pg{border-top:none}}`; }
+function sepLetterGen(name){
+  const date=(($("#sdDate")||{}).value)||new Date().toISOString().slice(0,10);
+  const reason=(($("#sdReason")||{}).value)||"Terminated";
+  const fmt=d=>{try{return new Date(d+"T00:00").toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});}catch(e){return d;}};
+  const first=(name||"").split(" ")[0];
+  const why = reason==="Terminated" ? `As with all employment at M & M Solutions, your employment was at-will, and this decision reflects that your performance did not meet the company's expectations for the role.`
+    : reason==="Resigned" ? `This letter confirms our acceptance of your resignation.`
+    : reason==="Laid off" ? `This separation is due to a reduction in work and is not a reflection of your individual performance.`
+    : reason==="End of assignment" ? `This separation reflects the end of the assignment for which you were engaged.`
+    : `As with all employment at M & M Solutions, your employment was at-will.`;
+  const box=r=>reason===r?"[ X ]":"[&nbsp;&nbsp;&nbsp;]";
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>Separation letter, ${esc(name)}</title><style>${_sepCss()}</style></head><body>
+  <div class="co">M &amp; M SOLUTIONS</div><div class="tag">San Rafael, California</div>
+  <p>${new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}</p>
+  <p><b>${esc(name)}</b></p>
+  <p><b>Re: Separation of Employment</b></p>
+  <p>Dear ${esc(first)},</p>
+  <p>This letter confirms that your employment with M &amp; M Solutions ends effective <b>${fmt(date)}</b>. ${why}</p>
+  <p>Your final paycheck includes all wages earned through your final day of work. In line with California law and company policy, unused paid sick leave is not paid out at separation.</p>
+  <p>Please return all company and client property by your final day, including any keys, entry codes or access devices, uniforms, supplies, and equipment. Your confidentiality obligations regarding client names, addresses, entry codes, and company information continue after your employment ends, as described in the Confidentiality Agreement you signed.</p>
+  <p>Enclosed you will also find the required Notice to Employee as to Change in Relationship and the EDD pamphlet "For Your Benefit" (DE 2320).</p>
+  <p>We thank you for your time with M &amp; M Solutions and wish you well. Questions about final pay or property: 628-386-4883.</p>
+  <p>Sincerely,</p>
+  <div class="ln">Deander Gooden, CEO \u00b7 M &amp; M Solutions</div>
+  <div class="pg">
+  <h2>NOTICE TO EMPLOYEE AS TO CHANGE IN RELATIONSHIP</h2>
+  <p class="nt" style="text-align:center">(Issued pursuant to Section 1089 of the California Unemployment Insurance Code)</p>
+  <p>Employee name: <b>${esc(name)}</b></p>
+  <p>You are hereby notified that effective <b>${fmt(date)}</b>, your status changed as follows:</p>
+  <p>${box("Terminated")} You were discharged &nbsp;&nbsp; ${box("Laid off")} You were laid off &nbsp;&nbsp; ${box("Resigned")} You resigned &nbsp;&nbsp; ${reason==="End of assignment"||reason==="Other"?"[ X ]":"[&nbsp;&nbsp;&nbsp;]"} Other: ${reason==="End of assignment"?"End of assignment":reason==="Other"?"____________":"____________"}</p>
+  <p>Employer: M &amp; M Solutions</p>
+  <p>By (name and title): ____________________________ &nbsp;&nbsp; Date: ____________</p>
+  <p>Employee signature (acknowledging receipt only): ____________________________</p>
+  <p class="nt">Office: deliver this notice no later than the effective date, hand the DE 2320 pamphlet with it, and for a termination pay all final wages the same day.</p>
+  </div>
+  <div class="pr"><button onclick="window.print()">Print or save as PDF</button></div>
+  </body></html>`;
+  _sepWin(html);
+}
+function coeGen(name){
+  const date=(($("#sdDate")||{}).value)||new Date().toISOString().slice(0,10);
+  const p=window._sepProf||{};
+  const fmt=d=>{try{return new Date(String(d).slice(0,10)+"T00:00").toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});}catch(e){return d||"____________";}};
+  const hire=p.hire_date?fmt(p.hire_date):"____________";
+  const role=p.role&&p.role!=="lead"&&p.role!=="owner"?p.role:(p.position||"Cleaning Technician");
+  const cls=p.class==="1099"?"an independent contractor (1099)":"a W-2 employee";
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>Certificate of Employment, ${esc(name)}</title><style>${_sepCss()}</style></head><body>
+  <div class="co">M &amp; M SOLUTIONS</div><div class="tag">San Rafael, California \u00b7 628-386-4883</div>
+  <h2 style="font-size:19px;margin:26px 0 18px">CERTIFICATE OF EMPLOYMENT</h2>
+  <p>To whom it may concern:</p>
+  <p>This certifies that <b>${esc(name)}</b> was employed by M &amp; M Solutions as ${cls} in the role of <b>${esc(role)}</b>, from <b>${hire}</b> to <b>${fmt(date)}</b>.</p>
+  <p>This certificate is issued at the request of the above-named individual for whatever lawful purpose it may serve, and is provided without prejudice.</p>
+  <p>Issued on ${new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}.</p>
+  <div class="ln">Deander Gooden, CEO \u00b7 M &amp; M Solutions</div>
+  <div class="pr"><button onclick="window.print()">Print or save as PDF</button></div>
+  </body></html>`;
+  _sepWin(html);
 }
 async function empErase(i){
   if(!state.isOwner){ toast("This action is locked"); return; }
@@ -1520,6 +1595,27 @@ async function empErase(i){
   try{ await refresh(); }catch(e){}
   if(state.module==="directory") renderDirectory();
   toast((p.name||"Person")+" deleted permanently");
+}
+async function healRoster(){
+  if(!state.isSuper) return;
+  try{
+    const emps=await DB.employees();
+    const all=emps.concat(INACTIVE_EMP||[]);
+    let fixed=0;
+    for(const p of (PROFILES||[])){
+      if(String(p.status||"").toLowerCase()!=="active") continue;
+      const rows=all.filter(e=>fuzzyNamesAlike(e.name,p.name));
+      if(rows.some(r=>r.active!==false)) continue;
+      const team=(p.team==="ph")?"ph":"ca";
+      if(rows.length){ await DB.updateEmployee(rows[0].id,{active:true}); }
+      else{
+        const balances={}; ((CONFIG.teams[team]||{}).leaveTypes||[]).forEach(lt=>balances[lt]=0);
+        await DB.addEmployee({name:(p.name||"").trim(),team,email:p.email||"",active:true,balances});
+      }
+      fixed++;
+    }
+    if(fixed){ try{ await refresh(); }catch(e){} toast(fixed+(fixed===1?" person":" people")+" restored to Clock in / out"); }
+  }catch(e){}
 }
 async function empReactivate(i){
   const p=PROFILES[i]; if(!p)return;
@@ -1866,7 +1962,9 @@ async function onbForward(o){
       try{ await DB.updateProfile(existing.id,{status:"Active",notes}); }catch(e){}
     }
     const emps=await DB.employees();
-    if(!emps.some(e=>norm(e.name)===norm(o.name))){
+    const match=emps.find(e=>norm(e.name)===norm(o.name));
+    if(match && match.active===false){ await DB.updateEmployee(match.id,{active:true}); }
+    else if(!match){
       const balances={}; ((CONFIG.teams[team]||{}).leaveTypes||[]).forEach(lt=>balances[lt]=0);
       await DB.addEmployee({name:(o.name||"").trim(),team,email:o.email||"",active:true,balances});
     }
