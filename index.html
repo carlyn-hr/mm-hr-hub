@@ -1348,7 +1348,7 @@ function empPanelBuild(i){
   const sepd=(p.status||"").toLowerCase().indexOf("separat")===0;
   const empActions = canEdit ? (sepd
     ? `<button class="btn btn-ghost" style="width:100%" onclick="sepDocsFromCard(${i})"><i class="ti ti-file-text"></i> Separation documents</button><button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="empReactivate(${i})"><i class="ti ti-user-check"></i> Reactivate this employee</button>${state.isOwner?`<button class="btn btn-ghost" style="width:100%;margin-top:8px;color:var(--bad)" onclick="empErase(${i})"><i class="ti ti-trash-x"></i> Delete permanently</button>`:""}`
-    : `<button class="btn btn-ghost" style="width:100%;color:var(--bad)" onclick="empOffboardModal(${i})"><i class="ti ti-user-x"></i> Offboard / mark as separated</button>`) : "";
+    : `${(EMP||[]).some(e=>fuzzyNamesAlike(e.name,p.name))?"":`<button class="btn btn-primary" style="width:100%;margin-bottom:8px" onclick="empRestoreClock(${i})"><i class="ti ti-clock-plus"></i> Restore to Clock in / out</button>`}<button class="btn btn-ghost" style="width:100%;color:var(--bad)" onclick="empOffboardModal(${i})"><i class="ti ti-user-x"></i> Offboard / mark as separated</button>`) : "";
   $("#pFoot").innerHTML=empActions+`<div class="foot-note" style="margin-top:${empActions?"8px":"0"}">Tap the pencil next to the name to edit the name and details right here.</div>`;
   $("#panel").classList.add("open");$("#panelScrim").classList.add("open");$("#pBody").scrollTop=0;
 }
@@ -1513,7 +1513,7 @@ function sepDocsModal(name,date,reason,prof){
     <p style="font-size:13px;color:var(--sub);line-height:1.5">${esc(name)} is marked Separated. Generate the paperwork below; each opens print-ready with a save-as-PDF button. Hand the final paycheck the same day for a termination, and give the EDD pamphlet DE 2320 with the letter.</p>
     <div class="mrow" style="margin-top:8px"><label>Last day<input id="sdDate" type="date" value="${esc(date)}"></label>
     <label>Reason<select id="sdReason">${["Terminated","Resigned","Laid off","End of assignment","Other"].map(r=>`<option ${r===reason?"selected":""}>${r}</option>`).join("")}</select></label></div>
-    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Done</button><button class="btn btn-ghost" onclick="coeGen(${JSON.stringify(name)})"><i class="ti ti-certificate"></i> Certificate of Employment</button><button class="btn btn-primary" onclick="sepLetterGen(${JSON.stringify(name)})"><i class="ti ti-printer"></i> Separation letter</button></div>`;
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Done</button><button class="btn btn-ghost" data-n="${esc(name)}" onclick="coeGen(this.dataset.n)"><i class="ti ti-certificate"></i> Certificate of Employment</button><button class="btn btn-primary" data-n="${esc(name)}" onclick="sepLetterGen(this.dataset.n)"><i class="ti ti-printer"></i> Separation letter</button></div>`;
   openModal();
 }
 function _sepWin(html){ const w=window.open("","_blank"); if(!w){ toast("Allow pop-ups to open the document"); return; } w.document.write(html); w.document.close(); }
@@ -1595,6 +1595,24 @@ async function empErase(i){
   try{ await refresh(); }catch(e){}
   if(state.module==="directory") renderDirectory();
   toast((p.name||"Person")+" deleted permanently");
+}
+async function empRestoreClock(i){
+  const p=PROFILES[i]; if(!p)return;
+  try{
+    const emps=await DB.employees();
+    const all=emps.concat(INACTIVE_EMP||[]);
+    const rows=all.filter(e=>fuzzyNamesAlike(e.name,p.name));
+    const team=(p.team==="ph")?"ph":"ca";
+    if(rows.some(r=>r.active!==false)){ toast("They are already on the clock roster. If the picker still misses them, tell Carlyn the team shown here: "+((rows.find(r=>r.active!==false)||{}).team||"none")); return; }
+    if(rows.length){ await DB.updateEmployee(rows[0].id,{active:true}); }
+    else{
+      const balances={}; ((CONFIG.teams[team]||{}).leaveTypes||[]).forEach(lt=>balances[lt]=0);
+      await DB.addEmployee({name:(p.name||"").trim(),team,email:p.email||"",active:true,balances});
+    }
+    await refresh();
+    toast((p.name||"Person")+" restored to Clock in / out");
+    empPanel(i);
+  }catch(e){ toast("Could not restore: "+((e&&(e.message||e.details||e.hint))||JSON.stringify(e)).slice(0,180)); }
 }
 async function healRoster(){
   if(!state.isSuper) return;
