@@ -3427,6 +3427,7 @@ function atAdmin(){
       </div>
       <div class="card"><div class="section-label">Today (${todays.length} entr${todays.length===1?'y':'ies'})</div>${todays.length?todays.map(atRow).join(""):`<div class="empty" style="padding:24px"><i class="ti ti-calendar"></i><p>No entries today yet.</p></div>`}</div>
     </div>
+    ${todayReportCard()}
     <div class="card" style="margin-top:20px">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <div class="section-label" style="margin:0">Timesheets</div>
@@ -3587,6 +3588,109 @@ function dailyTable(){
     return `<div class="ts-emp"><div class="ts-emp-h"><span class="avatar" style="width:30px;height:30px;font-size:11px;background:${avatarColor(e.team)}">${initials(e.name)}</span><span class="nm">${esc(e.name)}</span>${teamChip(e.team)}<span class="tot">${r1(e.total)}h <span>total</span></span></div>${days}</div>`;
   }).join("");
   return blocks+`<div class="ts-grand"><span>Total for ${fmtDate(state.tsRange.start)} to ${fmtDate(state.tsRange.end)}</span><span class="g">${r1(grand)}h</span></div>`;
+}
+/* ----- today's clock-in report -----
+   Who on the active roster punched in on the Hub today, who is still missing, and what
+   each person's day looks like so far. This is the check for the policy that all time is
+   clocked on the Hub. "Today" is the local calendar day, so an evening shift still counts. */
+function todayReportData(){
+  const active=(EMP||[]).filter(e=>e.active!==false&&e.role!=="owner");
+  const byEmp={};
+  (ATT||[]).filter(a=>a.clock_in&&isTodayIso(a.clock_in)).forEach(a=>{ (byEmp[a.employee_id]=byEmp[a.employee_id]||[]).push(a); });
+  return active.map(e=>{
+    const p=(byEmp[e.id]||[]).slice().sort((x,y)=>x.clock_in.localeCompare(y.clock_in));
+    const closed=p.filter(a=>a.clock_out);
+    const open=p.length!==closed.length;
+    const hours=closed.reduce((s,a)=>s+(a.hours||0),0);
+    return {id:e.id,name:e.name,team:e.team,role:e.role,lead:e.lead||"",punches:p,
+      status:!p.length?"missing":(open?"active":"done"),
+      first:p.length?p[0].clock_in:null,
+      last:closed.length?closed[closed.length-1].clock_out:null,
+      hours:r1(hours)};
+  }).sort((a,b)=>a.name.localeCompare(b.name));
+}
+function todayGroups(rows){
+  const groups=[];
+  rows.filter(r=>r.role==="lead").sort((a,b)=>a.name.localeCompare(b.name)).forEach(l=>{
+    groups.push({title:l.name+"'s team",members:[l].concat(rows.filter(r=>r.role==="rf"&&r.lead&&fuzzyNamesAlike(r.lead,l.name)).sort((a,b)=>a.name.localeCompare(b.name)))});
+  });
+  const ics=rows.filter(r=>r.role==="ic").sort((a,b)=>a.name.localeCompare(b.name));
+  if(ics.length) groups.push({title:"Independent contractors",members:ics});
+  const claimed=new Set(); groups.forEach(g=>g.members.forEach(m=>claimed.add(m.id)));
+  const rest=rows.filter(r=>!claimed.has(r.id)).sort((a,b)=>a.name.localeCompare(b.name));
+  if(rest.length) groups.push({title:"Not on a team yet",members:rest});
+  return groups;
+}
+function todayStatusText(r){
+  if(r.status==="missing") return "No punch today";
+  if(r.status==="active") return "On the clock since "+fmtTime(r.first);
+  return fmtTime(r.first)+" \u2192 "+fmtTime(r.last)+" \u00b7 "+r.hours+"h";
+}
+function todayReportCard(){
+  if(!state.todayView) state.todayView="summary";
+  const rows=todayReportData();
+  const missing=rows.filter(r=>r.status==="missing");
+  const onNow=rows.filter(r=>r.status==="active").length;
+  const done=rows.filter(r=>r.status==="done").length;
+  const inCount=rows.length-missing.length;
+  const pct=rows.length?Math.round(inCount/rows.length*100):0;
+
+  const stats=`<div class="stats" style="margin:15px 0 0">
+      <div class="stat"><div class="n">${rows.length}</div><div class="l">Active crew</div></div>
+      <div class="stat"><div class="n" style="color:var(--ok)">${inCount}</div><div class="l">Clocked in on the Hub (${pct}%)</div></div>
+      <div class="stat"><div class="n" style="color:${missing.length?"var(--bad)":"var(--ok)"}">${missing.length}</div><div class="l">No punch today</div></div>
+      <div class="stat"><div class="n">${onNow} / ${done}</div><div class="l">Still on the clock / finished</div></div>
+    </div>`;
+
+  const flag=missing.length
+    ? `<div class="card" style="border-color:var(--bad);margin:0 0 14px"><div style="font-size:13px;font-weight:700;color:var(--bad);margin-bottom:9px"><i class="ti ti-user-off"></i> ${missing.length===1?"1 person has":missing.length+" people have"} not clocked in on the Hub today</div><div style="display:flex;flex-wrap:wrap;gap:7px">${missing.map(m=>`<span class="days-tag">${esc(m.name)}</span>`).join("")}</div><div style="font-size:11.5px;color:var(--faint);margin-top:10px;line-height:1.5">Check each name before payroll. If they worked, have them send a Time Correction / Missed Punch form so the hours are on record, and remind them that all time is clocked on the Hub.</div></div>`
+    : `<div class="card" style="border-color:var(--ok);margin:0 0 14px"><div style="font-size:13px;font-weight:700;color:var(--ok)"><i class="ti ti-circle-check"></i> Everyone on the active roster has clocked in on the Hub today.</div></div>`;
+
+  const summaryHtml=`<div class="tp-wrap">${todayGroups(rows).map(g=>{
+    const inn=g.members.filter(m=>m.status!=="missing").length;
+    const cls=inn===0?"none":(inn===g.members.length?"full":"");
+    const mem=g.members.map(m=>`<div class="tp-row"><span class="tp-dot ${m.status!=="missing"?"on":""}"></span><div class="avatar" style="width:26px;height:26px;font-size:10px;background:${avatarColor(m.team)}">${initials(m.name)}</div><div class="tp-nm">${esc(m.name)}${m.role==="lead"?'<span class="tp-lead">LEAD</span>':""}</div><span class="tp-st ${m.status==="active"?"on":""}"${m.status==="missing"?' style="color:var(--bad)"':""}>${todayStatusText(m)}</span></div>`).join("");
+    return `<div class="tp-card"><div class="tp-head"><span class="tp-title">${esc(g.title)}</span><span class="tp-count ${cls}">${inn} / ${g.members.length} clocked in</span></div>${mem}</div>`;
+  }).join("")}</div>`;
+
+  const dailyRows=rows.slice().sort((a,b)=>(a.status==="missing"?0:1)-(b.status==="missing"?0:1)||a.name.localeCompare(b.name));
+  const kindLbl={travel:"Travel",office:"Office",remote:"Remote"};
+  const dailyHtml=dailyRows.map(r=>{
+    const body=r.punches.length
+      ? r.punches.map(a=>`<div class="ts-punch"><span class="io"><b>${fmtTime(a.clock_in)}</b> \u2192 ${a.clock_out?fmtTime(a.clock_out):"..."}</span>${kindLbl[a.kind]?`<span class="kind">${kindLbl[a.kind]}</span>`:""}${a.site?`<span class="site">${esc(a.site)}</span>`:""}${a.clock_out?`<span class="ph">${r1(a.hours||0)}h</span>`:`<span class="ph open">active</span>`}</div>`).join("")
+      : `<div class="ts-punch"><span class="io" style="color:var(--bad)">No punch recorded on the Hub today</span></div>`;
+    return `<div class="ts-emp"><div class="ts-emp-h"><span class="avatar" style="width:30px;height:30px;font-size:11px;background:${avatarColor(r.team)}">${initials(r.name)}</span><span class="nm">${esc(r.name)}</span>${teamChip(r.team)}<span class="tot">${r.hours}h <span>today</span></span></div>${body}</div>`;
+  }).join("");
+
+  return `<div class="card" style="margin-top:20px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div class="section-label" style="margin:0">Today's clock-in report \u00b7 ${fmtDay(new Date().toISOString())}</div>
+        <div class="ts-toggle">
+          <button class="${state.todayView!=="daily"?"on":""}" onclick="state.todayView='summary';renderAttendance()">Summary</button>
+          <button class="${state.todayView==="daily"?"on":""}" onclick="state.todayView='daily';renderAttendance()">Daily</button>
+        </div>
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="exportTodayCSV()"><i class="ti ti-download"></i> Export today</button>
+      </div>
+      ${stats}
+      <div style="margin-top:15px">${flag}</div>
+      ${state.todayView==="daily"?dailyHtml:summaryHtml}
+      <p style="font-size:11.5px;color:var(--faint);margin-top:14px;line-height:1.5">${state.todayView==="daily"?"Every active person and every punch they recorded today, with anyone missing listed first. Open shifts show as active and do not count toward the hours yet.":"Each team lead's crew with who has clocked in on the Hub today. A grey dot and a red note mean no punch was recorded at all."}</p>
+    </div>`;
+}
+function exportTodayCSV(){
+  const rows=todayReportData();
+  const day=new Date().toISOString().slice(0,10);
+  const csvt=iso=>iso?new Date(iso).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"}):"";
+  const lbl={missing:"NO PUNCH",active:"On the clock",done:"Clocked out"};
+  const head=["Date","Employee","Team","Team lead","Status","First clock-in","Last clock-out","Punches","Hours today"];
+  const lines=[head.join(",")];
+  rows.forEach(r=>{ lines.push([day,`"${r.name}"`,CONFIG.teams[r.team]?.label||r.team,`"${r.lead||""}"`,lbl[r.status],csvt(r.first),csvt(r.last),r.punches.length,r.hours].join(",")); });
+  const miss=rows.filter(r=>r.status==="missing").length;
+  lines.push("");
+  lines.push(["","","","","Active crew",rows.length].join(","));
+  lines.push(["","","","","Clocked in on the Hub",rows.length-miss].join(","));
+  lines.push(["","","","","No punch today",miss].join(","));
+  const blob=new Blob([lines.join("\n")],{type:"text/csv"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`clockin_report_${day}.csv`;a.click();URL.revokeObjectURL(url);toast("Today's report exported");
 }
 function exportCSV(){
   if(state.tsView==='daily'){
