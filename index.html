@@ -881,6 +881,8 @@ let DEMO_ACCOUNTS=[
   {id:"ac29",name:"Carlyn Castaneda",email:"carlyncastaneda@gmail.com",setup_code:"J8RD2M",status:"pending",pin_hash:null,bio_enrolled:false},
   {id:"ac30",name:"Mary Cauzon",email:"marycauzon@gmail.com",setup_code:"W5CY6L",status:"pending",pin_hash:null,bio_enrolled:false}
 ];
+let DEMO_STARS=[];
+let STARLEDGER=[]; let STARTABLE=true;
 let DEMO_REQ=[
   {id:"r1",employee_id:"m2",employee_name:"Gilma Rodas",team:"ca",type:"Paid Sick Leave",start_date:"2026-07-17",end_date:"2026-07-17",half_day:false,days:1,reason:"Doctor visit",status:"pending",created_at:"2026-07-15T09:00:00Z"}
 ];
@@ -953,6 +955,9 @@ const DB={
   async deleteEntry(id){ if(LIVE){const{error}=await sb.from("attendance").delete().eq("id",id);if(error)throw error;return;} DEMO_ATT=DEMO_ATT.filter(x=>x.id!==id); },
   async renameAttendance(empId,name){ if(LIVE){const{error}=await sb.from("attendance").update({employee_name:name}).eq("employee_id",empId); if(error)throw error; return;} DEMO_ATT.forEach(a=>{ if(a.employee_id===empId) a.employee_name=name; }); },
   async renameRequests(empId,name){ if(LIVE){const{error}=await sb.from("leave_requests").update({employee_name:name}).eq("employee_id",empId); if(error)throw error; return;} DEMO_REQ.forEach(r=>{ if(r.employee_id===empId) r.employee_name=name; }); },
+  async starLedger(){ if(!LIVE)return clone(DEMO_STARS); const{data,error}=await sb.from("hub_star_ledger").select("*").order("created_at",{ascending:false}); if(error)throw error; return data||[]; },
+  async addStarLedger(o){ if(!LIVE){ const rec={...o,id:uid()}; DEMO_STARS.unshift(rec); return rec; } const{data,error}=await sb.from("hub_star_ledger").insert(o).select(); if(error)throw error; return data&&data[0]; },
+  async deleteStarLedger(id){ if(!LIVE){ DEMO_STARS=DEMO_STARS.filter(x=>x.id!==id); return; } const{error}=await sb.from("hub_star_ledger").delete().eq("id",id); if(error)throw error; },
   async accounts(){ if(!LIVE)return clone(DEMO_ACCOUNTS).sort((a,b)=>(a.name||"").localeCompare(b.name||"")); const{data,error}=await sb.from("hub_accounts").select("*").order("name"); if(error)throw error; return data||[]; },
   async accountByLogin(q){ if(!LIVE){ const isE=q.indexOf("@")>=0; const v=isE?q.toLowerCase():q.toUpperCase(); return DEMO_ACCOUNTS.find(a=>isE?(a.email||"").toLowerCase()===v:(a.setup_code||"")===v)||null; } const isEmail=q.indexOf("@")>=0; const col=isEmail?"email":"setup_code"; const val=isEmail?q.toLowerCase():q.toUpperCase(); const{data,error}=await sb.from("hub_accounts").select("*").eq(col,val).limit(1); if(error)throw error; return (data&&data[0])||null; },
   async accountById(id){ if(!LIVE)return DEMO_ACCOUNTS.find(a=>a.id===id)||null; const{data,error}=await sb.from("hub_accounts").select("*").eq("id",id).limit(1); if(error)throw error; return (data&&data[0])||null; },
@@ -1012,6 +1017,7 @@ async function refresh(){
       else { LIVE=false;applyBranding();toast("Database unreachable, using demo data");EMP=await DB.employees();REQ=await DB.requests();ATT=await DB.attendance(); }
     }
   }
+  try{ await starLoad(); }catch(e){ STARLEDGER=[]; STARTABLE=false; }
   if(typeof OFFQ!=="undefined"&&LIVE){ const _p=OFFQ.pending(); for(const it of _p){ const r=it.row; const ex=(ATT||[]).find(a=>a.id===r.id); if(ex&&!ex.clock_out) Object.assign(ex,r); else if(!ex&&it.isNew) ATT.push(JSON.parse(JSON.stringify(r))); } }
   /* Directory status is the source of truth: anyone marked Separated there is removed
      from the active roster (Clock, Timekeeping, Time off), and their leftover active
@@ -1154,6 +1160,7 @@ function render(){
   else if(state.module==="sop") renderSOP();
   else if(state.module==="hrinbox") renderInbox();
   else if(state.module==="accounts") renderAccounts();
+  else if(state.module==="stars") renderStars();
   else if(state.module==="anniv") renderCelebrations("anniv");
   else if(state.module==="bday") renderCelebrations("bday");
   else if(state.module==="onboard") renderOnboard();
@@ -3159,6 +3166,60 @@ function starHint(d){
   if(d.today.earned) return t("Today's star is earned. Nice work.");
   return t("Today's star was missed:")+" "+t("no")+" "+d.today.miss.join(", ")+" "+t("recorded.");
 }
+
+/* ---- star ledger -------------------------------------------------------
+   Daily stars stay computed from punches so a corrected punch heals itself.
+   Only redemptions and manual adjustments are stored, so a balance is always
+   earned-minus-spent and can never drift out of step with the timesheet. */
+const STAR_TIMEOFF=5, STAR_PERFECT=20, STAR_PERFECT_MIN_DAYS=10;
+function starDaysFor(empId){
+  const byDay={};
+  (typeof ATT!=="undefined"?ATT:[]).forEach(a=>{
+    if(a.employee_id!==empId||!a.clock_in)return;
+    const k=starKeyOf(a.clock_in); if(!k)return; (byDay[k]=byDay[k]||[]).push(a);
+  });
+  const out={}; Object.keys(byDay).forEach(k=>{ out[k]=starDay(byDay[k]); });
+  return out;
+}
+/* A month is perfect when every day the person actually worked earned its star
+   and there were enough of them to mean something. Only closed months count, so
+   nobody is paid a bonus for a month still in progress. */
+function starPerfectMonths(days){
+  const now=new Date(), curM=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
+  const m={};
+  Object.keys(days).forEach(k=>{
+    const mk=k.slice(0,7); m[mk]=m[mk]||{clean:0,dirty:0};
+    days[k].earned?m[mk].clean++:m[mk].dirty++;
+  });
+  const won=[];
+  Object.keys(m).forEach(mk=>{
+    if(mk>=curM)return;
+    if(m[mk].dirty===0&&m[mk].clean>=STAR_PERFECT_MIN_DAYS) won.push(mk);
+  });
+  return won;
+}
+function starEarned(empId){
+  const days=starDaysFor(empId);
+  let daily=0; Object.keys(days).forEach(k=>{ if(days[k].earned) daily++; });
+  const approved=(typeof REQ!=="undefined"?REQ:[]).filter(r=>r.employee_id===empId&&r.status==="approved").length;
+  const perfect=starPerfectMonths(days);
+  return {daily:daily, timeoff:approved*STAR_TIMEOFF, timeoffCount:approved,
+          perfect:perfect.length*STAR_PERFECT, perfectMonths:perfect,
+          total:daily+approved*STAR_TIMEOFF+perfect.length*STAR_PERFECT};
+}
+function starSpent(empId){
+  return (STARLEDGER||[]).filter(r=>r.employee_id===empId)
+    .reduce((n,r)=>n+(parseInt(r.stars,10)||0),0);
+}
+function starBalance(empId){
+  const e=starEarned(empId); const adj=starSpent(empId);
+  return {earned:e.total, adjust:adj, balance:e.total+adj, detail:e};
+}
+async function starLoad(){
+  try{ STARLEDGER=await DB.starLedger(); STARTABLE=true; }
+  catch(e){ STARLEDGER=[]; STARTABLE=false; }
+}
+
 function starStrip(){
   if(typeof sessEmp!=="function")return "";
   let me=null; try{ me=sessEmp(); }catch(e){ me=null; }
@@ -3174,6 +3235,109 @@ function starStrip(){
     <div class="star-hint">${esc(starHint(d))}</div></div>`;
 }
 
+
+/* ============================================================ STAR SUMMARY (owner only) ============================================================ */
+function starRoster(){
+  const seen={}, out=[];
+  (typeof EMP!=="undefined"?EMP:[]).forEach(e=>{ if(!seen[e.id]){ seen[e.id]=1; out.push({id:e.id,name:e.name,team:e.team}); } });
+  return out.sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+}
+function renderStars(){
+  if(!state.isOwner){
+    $("#view").innerHTML=pageHead("Stars","Star program","")+
+      `<div class="card empty"><i class="ti ti-lock"></i><p>${t("You don't have access to this section.")}</p></div>`;
+    return;
+  }
+  if(!STARTABLE){
+    $("#view").innerHTML=pageHead("Stars","Star program","")+
+      `<div class="card empty"><i class="ti ti-database-off"></i><p>The star ledger table isn't set up yet. Run the hub_star_ledger SQL in Supabase, then refresh.</p></div>`;
+    return;
+  }
+  const rows=starRoster().map(p=>{ const b=starBalance(p.id); return {p:p,b:b}; })
+    .sort((a,b)=>b.b.balance-a.b.balance);
+  const totEarned=rows.reduce((n,r)=>n+r.b.earned,0);
+  const totBal=rows.reduce((n,r)=>n+r.b.balance,0);
+  const totSpent=rows.reduce((n,r)=>n+Math.abs(Math.min(0,r.b.adjust)),0);
+  const teams={};
+  rows.forEach(r=>{ const k=r.p.team||"ca"; teams[k]=(teams[k]||0)+r.b.balance; });
+  const teamCards=Object.keys(teams).sort((a,b)=>teams[b]-teams[a]).map(k=>
+    `<div class="bal"><div class="n">${teams[k]}<small> stars</small></div><div class="t">${esc((CONFIG.teams[k]||{}).label||k)}</div></div>`).join("");
+  const body=rows.map(r=>{
+    const d=r.b.detail;
+    const bits=[`${d.daily} daily`];
+    if(d.timeoffCount) bits.push(`${d.timeoff} time off (${d.timeoffCount})`);
+    if(d.perfectMonths.length) bits.push(`${d.perfect} perfect month${d.perfectMonths.length===1?"":"s"}`);
+    const spent=r.b.adjust?`<span class="mini-bal">${r.b.adjust>0?"+":""}${r.b.adjust} adjusted</span>`:"";
+    return `<div class="people-row">
+      <div class="avatar" style="background:${avatarColor(r.p.team)}">${initials(r.p.name)}</div>
+      <div style="flex:1;min-width:0"><div class="people-name">${esc(r.p.name)}</div>
+        <div class="people-sub">${esc(bits.join(" \u00b7 "))}</div></div>
+      <div class="people-bal"><span class="mini-bal" style="font-weight:800">${r.b.balance} \u2605</span>${spent}
+        <button class="linkbtn" onclick="starRedeemModal('${r.p.id}')">Redeem</button></div></div>`;
+  }).join("");
+  const hist=(STARLEDGER||[]).slice(0,25).map(l=>
+    `<div class="people-row"><div style="flex:1;min-width:0">
+      <div class="people-name">${esc(l.employee_name||"")} <span class="mini-bal">${l.stars>0?"+":""}${l.stars}</span></div>
+      <div class="people-sub">${esc(l.reward||l.note||"")} \u00b7 ${esc(fmtDate((l.created_at||"").slice(0,10)))}</div></div>
+      ${state.isOwner?`<button class="linkbtn" style="color:var(--bad)" onclick="starUndo('${l.id}')">Undo</button>`:""}</div>`).join("");
+  $("#view").innerHTML=pageHead("Stars \u00b7 Owner","Star program",
+    "Balances are earned stars minus anything redeemed. Daily stars are computed from the timesheet, so fixing a punch updates them automatically.")+
+    `<div class="card" style="margin-bottom:18px"><div class="section-label">This crew</div>
+      <div class="bal-grid"><div class="bal"><div class="n">${totEarned}<small> stars</small></div><div class="t">Earned all time</div></div>
+      <div class="bal"><div class="n">${totSpent}<small> stars</small></div><div class="t">Redeemed</div></div>
+      <div class="bal"><div class="n">${totBal}<small> stars</small></div><div class="t">Outstanding balance</div></div></div></div>
+     <div class="card" style="margin-bottom:18px"><div class="section-label">By team</div><div class="bal-grid">${teamCards}</div></div>
+     <div class="card" style="margin-bottom:18px"><div class="section-label" style="display:flex;align-items:center;gap:8px">Everyone
+       <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="starExport()"><i class="ti ti-download"></i> Export CSV</button></div>
+       ${body||'<div class="people-sub" style="padding:12px 0">Nobody on the roster yet.</div>'}</div>
+     <div class="card"><div class="section-label">Recent redemptions</div>${hist||'<div class="people-sub" style="padding:12px 0">Nothing redeemed yet.</div>'}</div>`;
+}
+const STAR_REWARDS=[{label:"$25 cash reward",cost:50},{label:"$50 cash reward",cost:90},
+  {label:"First pick of routes for a month",cost:60},{label:"Team lunch",cost:100}];
+function starRedeemModal(id){
+  if(!state.isOwner){ toast("This action is locked"); return; }
+  const p=starRoster().find(x=>x.id===id); if(!p)return;
+  const b=starBalance(id);
+  const opts=STAR_REWARDS.map(r=>`<option value="${r.cost}" data-l="${esc(r.label)}">${esc(r.label)} \u00b7 ${r.cost} stars</option>`).join("");
+  $("#modalBox").innerHTML=`<h3>Redeem \u00b7 ${esc(p.name)}</h3>
+    <p style="font-size:13px;color:var(--sub);margin-bottom:14px">Balance: <b>${b.balance}</b> stars.</p>
+    <div class="field"><label>Reward</label><select class="f-input" id="srReward">${opts}<option value="0" data-l="Other">Other (type below)</option></select></div>
+    <div class="field"><label>Stars to deduct</label><input class="f-input" id="srCost" type="number" value="50" min="1" step="1"/></div>
+    <div class="field"><label>Note (optional)</label><input class="f-input" id="srNote" placeholder="Released by Dee"/></div>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="starRedeem('${id}')"><i class="ti ti-star"></i> Redeem</button></div>`;
+  openModal();
+  const sel=$("#srReward"); if(sel) sel.onchange=()=>{ const v=parseInt(sel.value,10)||0; if(v)$("#srCost").value=v; };
+}
+async function starRedeem(id){
+  if(!state.isOwner){ toast("This action is locked"); return; }
+  const p=starRoster().find(x=>x.id===id); if(!p)return;
+  const cost=parseInt($("#srCost").value,10)||0;
+  if(cost<1){ toast("Enter how many stars to deduct"); return; }
+  const b=starBalance(id);
+  if(cost>b.balance){ toast(`Only ${b.balance} stars available`); return; }
+  const sel=$("#srReward"); const label=sel&&sel.selectedOptions[0]?sel.selectedOptions[0].dataset.l:"Reward";
+  try{
+    await DB.addStarLedger({employee_id:id,employee_name:p.name,stars:-cost,
+      reward:label,note:$("#srNote").value.trim(),created_at:new Date().toISOString(),created_by:roleName()});
+    await starLoad(); closeModal(); toast(`${cost} stars redeemed`); renderStars();
+  }catch(e){ toast("Could not save the redemption"); }
+}
+async function starUndo(id){
+  if(!state.isOwner){ toast("This action is locked"); return; }
+  try{ await DB.deleteStarLedger(id); await starLoad(); toast("Redemption removed"); renderStars(); }
+  catch(e){ toast("Could not remove it"); }
+}
+function starExport(){
+  const rows=[["Name","Team","Daily","Time off","Perfect month","Earned","Adjusted","Balance"]];
+  starRoster().forEach(p=>{ const b=starBalance(p.id), d=b.detail;
+    rows.push([p.name,(CONFIG.teams[p.team]||{}).label||p.team||"",d.daily,d.timeoff,d.perfect,b.earned,b.adjust,b.balance]); });
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download="mm-stars-"+new Date().toISOString().slice(0,10)+".csv"; a.click();
+}
+
 function polHome(v){
   const adminTiles =
     (state.isAdmin ? `
@@ -3184,7 +3348,8 @@ function polHome(v){
     <button class="action-card" onclick="goModule('directory')"><div class="ai">\u{1F465}</div><div><h3>${t('Directory')}</h3><p>${t('Employee records')}</p></div></button>
     <button class="action-card" onclick="goModule('recruit')"><div class="ai">\u{1F4BC}</div><div><h3>${t('Recruitment')}</h3><p>${t('Hiring and onboarding')}</p></div></button>
     <button class="action-card" onclick="goModule('hrinbox')"><div class="ai">\u{1F4E5}</div><div><h3>${t('HR Inbox')}</h3><p>${t('Forms sent to HR')}</p></div></button>` : "")
-  + (state.isOwner?`<button class="action-card" onclick="goModule('accounts')"><div class="ai">\u{1F511}</div><div><h3>${t('Accounts')}</h3><p>${t('Hub logins and access')}</p></div></button>`:``);
+  + (state.isOwner?`<button class="action-card" onclick="goModule('accounts')"><div class="ai">\u{1F511}</div><div><h3>${t('Accounts')}</h3><p>${t('Hub logins and access')}</p></div></button>
+    <button class="action-card" onclick="goModule('stars')"><div class="ai">\u{2B50}</div><div><h3>Stars</h3><p>Balances and redemptions</p></div></button>`:``);
   const actions=`<div class="section-label">${t('Quick actions')}</div><div class="action-grid">
     <button class="action-card" data-tour="policies" onclick="openPolicies()"><div class="ai">\u{1F4D6}</div><div><h3>${t('Policies')}</h3><p>${t('Read your policies')}</p></div></button>
     <button class="action-card" data-tour="clock" onclick="goModule('clock')"><div class="ai">\u{1F550}</div><div><h3>${t('Clock in / out')}</h3><p>${t('Start or end your shift')}</p></div></button>
